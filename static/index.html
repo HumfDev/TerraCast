@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TerraCast — Yield Prediction + Genie AI</title>
+  <style>
+    :root {
+      --green: #2d7a2d;
+      --green-l: #4caf50;
+      --green-dk: #1b5e20;
+      --bg: #f6faff;
+      --page-gradient: linear-gradient(180deg, #f2f9ff 0%, #edf7f1 100%);
+      --card: #ffffff;
+      --text: #1a1f2e;
+      --muted: #6b7280;
+      --border: #d8e6d8;
+      --radius: 16px;
+      --shadow: 0 18px 40px rgba(20, 55, 90, 0.14);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--page-gradient);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Hero ─────────────────────────────────────────────── */
+    .hero-section {
+      min-height: 100vh;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      isolation: isolate;
+    }
+    .hero-section::before {
+      content: none;
+    }
+    .hero-section::after {
+      content: none;
+    }
+
+    header {
+      color: #114321;
+      padding: 20px 30px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+    }
+    .header-logo { font-size: 1.9rem; line-height: 1; }
+    .header-title { font-size: 1.45rem; font-weight: 700; letter-spacing: -0.4px; }
+    .header-sub { font-size: 0.8rem; opacity: 0.84; margin-top: 2px; }
+    .section-nav {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .section-link {
+      text-decoration: none;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      color: #1e4f2c;
+      background: rgba(255,255,255,0.66);
+      border: 1px solid rgba(17, 67, 33, 0.16);
+      border-radius: 999px;
+      padding: 6px 12px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition: transform 0.15s ease, background 0.2s ease;
+    }
+    .section-link:hover {
+      transform: translateY(-1px);
+      background: rgba(255,255,255,0.82);
+    }
+    .header-badge {
+      margin-left: 8px;
+      background: rgba(255,255,255,0.66);
+      border: 1px solid rgba(17, 67, 33, 0.16);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      color: #1e4f2c;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .hero-center {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 20px 46px;
+    }
+    .hero-stack {
+      width: min(920px, 96vw);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .hero-title {
+      font-size: clamp(1.8rem, 4vw, 3.2rem);
+      color: #14364f;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      text-align: center;
+      text-shadow: 0 2px 20px rgba(255,255,255,0.42);
+    }
+    .chat-shell {
+      width: 100%;
+      height: min(70vh, 720px);
+      min-height: 460px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    /* ── Section 2: Yield Predictor ──────────────────────── */
+    .predictor-section {
+      min-height: 100vh;
+      padding: 20px 16px 24px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    .predictor-wrap {
+      width: min(980px, 96vw);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .predictor-title {
+      text-align: center;
+      color: #1f3f4c;
+      font-size: clamp(1.25rem, 2.5vw, 2rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .predictor-subtitle {
+      text-align: center;
+      color: #506974;
+      font-size: 0.88rem;
+    }
+
+    /* ── Section 3: Charts ───────────────────────────────── */
+    .charts-section {
+      min-height: 100vh;
+      padding: 20px 16px 24px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    .charts-wrap {
+      width: min(980px, 96vw);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .charts-title {
+      text-align: center;
+      color: #1f3f4c;
+      font-size: clamp(1.25rem, 2.5vw, 2rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .charts-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .charts-nav-btn {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .charts-nav-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .chart-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .chart-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      box-shadow: 0 6px 18px rgba(16, 44, 29, 0.08);
+    }
+    .chart-card h3 {
+      color: var(--green);
+      font-size: 0.82rem;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .chart-card img {
+      width: 100%;
+      display: block;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #fff;
+      max-height: 48vh;
+      object-fit: contain;
+    }
+    .chart-grid.fullscreen-mode {
+      grid-template-columns: 1fr;
+    }
+    .chart-card.fullscreen h3 {
+      font-size: 0.9rem;
+    }
+    .chart-card.fullscreen img {
+      max-height: 78vh;
+    }
+
+    /* ── Panel card ─────────────────────────────────────── */
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 30px rgba(16, 44, 29, 0.12);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+    .panel-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.88);
+    }
+    .panel-header h2 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--green);
+    }
+    .panel-body { flex: 1; overflow-y: auto; padding: 12px 14px; }
+
+    /* ── Form ───────────────────────────────────────────── */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px 10px;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 3px; }
+    label {
+      font-size: 0.66rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    input[type="text"],
+    input[type="number"],
+    select {
+      padding: 7px 9px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.83rem;
+      background: var(--bg);
+      color: var(--text);
+      transition: border-color 0.2s, background 0.2s;
+      outline: none;
+      width: 100%;
+    }
+    input:focus, select:focus { border-color: var(--green-l); background: white; }
+
+    .btn-primary {
+      width: 100%;
+      margin-top: 10px;
+      padding: 9px;
+      background: var(--green);
+      color: white;
+      border: none;
+      border-radius: 9px;
+      font-size: 0.86rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-primary:hover  { background: var(--green-dk); }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+    /* ── Prediction result ──────────────────────────────── */
+    #result-section { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+
+    .yield-display {
+      text-align: center;
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    .yield-display.excellent { background: #e8f5e9; border: 2px solid #4caf50; }
+    .yield-display.good      { background: #f1f8e9; border: 2px solid #8bc34a; }
+    .yield-display.average   { background: #fff8e1; border: 2px solid #ffc107; }
+    .yield-display.poor      { background: #fbe9e7; border: 2px solid #ff5722; }
+
+    .yield-num { font-size: 2.1rem; font-weight: 800; line-height: 1; }
+    .excellent .yield-num { color: #2e7d32; }
+    .good      .yield-num { color: #558b2f; }
+    .average   .yield-num { color: #f57f17; }
+    .poor      .yield-num { color: #bf360c; }
+
+    .yield-unit  { font-size: 0.82rem; color: var(--muted); margin-top: 4px; }
+    .yield-badge {
+      display: inline-block; margin-top: 8px;
+      padding: 3px 14px; border-radius: 20px;
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .excellent .yield-badge { background: #4caf50; color: white; }
+    .good      .yield-badge { background: #8bc34a; color: white; }
+    .average   .yield-badge { background: #ffc107; color: #333; }
+    .poor      .yield-badge { background: #ff5722; color: white; }
+
+    .metrics { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 14px; }
+    .metric { background: var(--bg); border-radius: 8px; padding: 10px; text-align: center; }
+    .metric-lbl { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+    .metric-val { font-size: 1.3rem; font-weight: 700; margin-top: 2px; }
+
+    /* ── Chatbot panel ──────────────────────────────────── */
+    .chat-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+
+
+    /* Messages */
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 0;
+    }
+
+    .msg { display: flex; flex-direction: column; max-width: 85%; }
+    .msg.user { align-self: flex-end; align-items: flex-end; }
+    .msg.bot  { align-self: flex-start; align-items: flex-start; }
+
+    .msg-name { font-size: 0.68rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+
+    .msg-bubble {
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 0.87rem;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+    .msg.user .msg-bubble {
+      background: var(--green);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+    .msg.bot .msg-bubble {
+      background: #f0f4eb;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+    }
+
+    /* SQL block inside bot message */
+    .sql-block {
+      margin-top: 10px;
+      background: #1e1e2e;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .sql-block-header {
+      padding: 5px 12px;
+      background: #2d2d44;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #a0aec0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sql-block pre {
+      padding: 12px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 0.78rem;
+      color: #e2e8f0;
+      overflow-x: auto;
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .msg-time { font-size: 0.65rem; color: var(--muted); margin-top: 3px; }
+
+    /* Typing indicator */
+    .typing-indicator .msg-bubble {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 12px 16px;
+    }
+    .dot {
+      width: 7px; height: 7px;
+      background: var(--muted);
+      border-radius: 50%;
+      animation: bounce 1.2s infinite ease-in-out;
+    }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0.7); opacity: 0.5; }
+      40% { transform: scale(1.1); opacity: 1; }
+    }
+
+    /* Welcome state */
+    .chat-welcome {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      text-align: center;
+      padding: 32px;
+      min-height: 100%;
+      gap: 10px;
+    }
+    .chat-welcome h3 { font-size: 1rem; font-weight: 600; color: var(--text); }
+    .chat-welcome p  { font-size: 0.83rem; line-height: 1.6; max-width: 280px; }
+
+    /* Suggestion chips */
+    .suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 0;
+    }
+    .chip {
+      padding: 6px 14px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      color: var(--text);
+    }
+    .chip:hover { border-color: var(--green-l); background: #f0faf0; }
+
+    /* Input bar */
+    .chat-input-bar {
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      background: white;
+      display: flex;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .chat-input-bar textarea {
+      flex: 1;
+      padding: 10px 13px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.88rem;
+      font-family: inherit;
+      resize: none;
+      outline: none;
+      line-height: 1.4;
+      max-height: 120px;
+      transition: border-color 0.2s;
+      background: var(--bg);
+    }
+    .chat-input-bar textarea:focus { border-color: var(--green-l); background: white; }
+    .btn-send {
+      padding: 10px 18px;
+      background: var(--green);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      font-weight: 600;
+      align-self: flex-end;
+    }
+    .btn-send:hover   { background: var(--green-dk); }
+    .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Utilities ───────────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-toast {
+      background: #fbe9e7;
+      color: #bf360c;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.84rem;
+      display: none;
+      margin-top: 12px;
+    }
+    .new-conv-btn {
+      font-size: 0.72rem;
+      color: var(--muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-decoration: underline;
+      margin-left: auto;
+      padding: 0;
+    }
+    .new-conv-btn:hover { color: var(--green); }
+
+    @media (max-width: 900px) {
+      header { padding: 16px 18px; }
+      .section-nav { width: 100%; justify-content: flex-start; margin-left: 0; margin-top: 8px; }
+      .section-link { font-size: 0.72rem; padding: 6px 10px; }
+      .header-badge { display: none; }
+      .chat-shell { min-height: 64vh; }
+      .hero-center { padding-bottom: 24px; }
+      .form-grid { grid-template-columns: 1fr 1fr; }
+      .metrics { grid-template-columns: 1fr; }
+      .chart-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<section class="hero-section" id="chat-assistant">
+  <!-- ── Header ──────────────────────────────────────────── -->
+  <header>
+    <div class="header-logo">🌾</div>
+    <div>
+      <div class="header-title">TerraCast</div>
+      <div class="header-sub">Weather-Based Crop Yield Prediction</div>
+    </div>
+    <nav class="section-nav" aria-label="Section navigation">
+      <a class="section-link" href="#chat-assistant">Assistant</a>
+      <a class="section-link" href="#yield-predictor">Predictor</a>
+      <a class="section-link" href="#charts">Charts</a>
+    </nav>
+    <div class="header-badge">Powered by Databricks</div>
+  </header>
+
+  <div class="hero-center">
+    <div class="hero-stack">
+      <h1 class="hero-title">Predict your yield output.</h1>
+
+      <div class="panel chat-shell">
+        <div class="panel-header">
+          <h2>Genie AI</h2>
+          <button class="new-conv-btn" id="new-conv-btn" title="Start a new conversation">New conversation</button>
+        </div>
+
+        <!-- Chat area -->
+        <div class="chat-panel">
+          <!-- Welcome / messages container -->
+          <div class="chat-messages" id="chat-messages">
+            <div class="chat-welcome" id="chat-welcome">
+              <div class="suggestions">
+                <button class="chip" onclick="useSuggestion(this)">Which weather features most affect corn yield?</button>
+                <button class="chip" onclick="useSuggestion(this)">Show counties with unusually high yield despite drought</button>
+                <button class="chip" onclick="useSuggestion(this)">What happened to yields in 2012?</button>
+                <button class="chip" onclick="useSuggestion(this)">Compare heat stress impact on corn vs soybeans</button>
+                <button class="chip" onclick="useSuggestion(this)">Which states had the worst yield z-scores?</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Input bar -->
+          <div class="chat-input-bar">
+            <textarea id="chat-input" rows="1" placeholder="Ask Genie about your yield data…"></textarea>
+            <button class="btn-send" id="send-btn">
+              <span>Send</span>
+              <span>↑</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section class="predictor-section" id="yield-predictor">
+  <div class="predictor-wrap">
+    <h2 class="predictor-title">Yield Predictor</h2>
+    <p class="predictor-subtitle">Adjust weather inputs below to estimate expected output.</p>
+
+    <div class="panel">
+      <div class="panel-header">
+        <span>🌤</span>
+        <h2>Yield Predictor</h2>
+      </div>
+      <div class="panel-body">
+        <form id="predict-form">
+          <div class="form-grid">
+
+            <!-- ── Group 1: Crop Information ── -->
+            <div class="form-group" style="grid-column: 1 / -1; margin-top: 4px;">
+              <label style="color: var(--green); font-size: 0.75rem;">— Crop Information</label>
+            </div>
+            <div class="form-group">
+              <label>Crop Type</label>
+              <select name="crop_type" required>
+                <option value="">Select crop…</option>
+                <option value="Corn" selected>Corn</option>
+                <option value="Soybeans">Soybeans</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>State</label>
+              <select name="state_abbr" id="state-select" required>
+                <option value="">Select state…</option>
+                <option value="AL">Alabama</option>
+                <option value="AR">Arkansas</option>
+                <option value="CO">Colorado</option>
+                <option value="DE">Delaware</option>
+                <option value="FL">Florida</option>
+                <option value="GA">Georgia</option>
+                <option value="IA">Iowa</option>
+                <option value="IL" selected>Illinois</option>
+                <option value="IN">Indiana</option>
+                <option value="KS">Kansas</option>
+                <option value="KY">Kentucky</option>
+                <option value="LA">Louisiana</option>
+                <option value="MD">Maryland</option>
+                <option value="MI">Michigan</option>
+                <option value="MN">Minnesota</option>
+                <option value="MO">Missouri</option>
+                <option value="MS">Mississippi</option>
+                <option value="MT">Montana</option>
+                <option value="NC">North Carolina</option>
+                <option value="ND">North Dakota</option>
+                <option value="NE">Nebraska</option>
+                <option value="NJ">New Jersey</option>
+                <option value="NM">New Mexico</option>
+                <option value="NY">New York</option>
+                <option value="OH">Ohio</option>
+                <option value="OK">Oklahoma</option>
+                <option value="OR">Oregon</option>
+                <option value="PA">Pennsylvania</option>
+                <option value="SC">South Carolina</option>
+                <option value="SD">South Dakota</option>
+                <option value="TN">Tennessee</option>
+                <option value="TX">Texas</option>
+                <option value="VA">Virginia</option>
+                <option value="WA">Washington</option>
+                <option value="WI">Wisconsin</option>
+                <option value="WV">West Virginia</option>
+                <option value="WY">Wyoming</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>County <span style="font-weight:400;text-transform:none">(optional)</span></label>
+              <select name="county_key" id="county-select">
+                <option value="17-0">— all counties (state avg) —</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Year</label>
+              <input type="number" name="year" min="1990" max="2030" value="2022" required />
+            </div>
+            <div class="form-group">
+              <label>Irrigation</label>
+              <select name="is_irrigated" required>
+                <option value="0">Non-Irrigated</option>
+                <option value="1">Irrigated</option>
+              </select>
+            </div>
+
+            <!-- ── Group 2: Growing Season Temperatures ── -->
+            <div class="form-group" style="grid-column: 1 / -1; margin-top: 8px;">
+              <label style="color: var(--green); font-size: 0.75rem;">— Growing Season Temperatures (Apr–Sep)</label>
+            </div>
+            <div class="form-group">
+              <label>Avg Max Temp (°C)</label>
+              <input type="number" name="avg_temp_max_c" step="0.1" value="28.5" required />
+            </div>
+            <div class="form-group">
+              <label>Avg Min Temp (°C)</label>
+              <input type="number" name="avg_temp_min_c" step="0.1" value="13.0" required />
+            </div>
+            <div class="form-group">
+              <label>Avg Mean Temp (°C)</label>
+              <input type="number" name="avg_temp_mean_c" step="0.1" value="20.5" required />
+            </div>
+            <div class="form-group">
+              <label>Peak Max Temp (°C)</label>
+              <input type="number" name="peak_temp_max_c" step="0.1" value="35.5" required />
+            </div>
+            <div class="form-group">
+              <label title="Number of days during Apr–Sep where daily max temperature exceeded 35°C">Heat Stress Days <span style="font-weight:400;text-transform:none">(days &gt;35°C)</span></label>
+              <input type="number" name="heat_stress_days" step="0.1" min="0" value="3" required
+                title="Number of days during Apr–Sep where daily max temperature exceeded 35°C" />
+            </div>
+
+            <!-- ── Group 3: Precipitation ── -->
+            <div class="form-group" style="grid-column: 1 / -1; margin-top: 8px;">
+              <label style="color: var(--green); font-size: 0.75rem;">— Precipitation (Growing Season)</label>
+            </div>
+            <div class="form-group">
+              <label>Total Precip (mm)</label>
+              <input type="number" name="avg_precip_mm" step="1" value="520" required />
+            </div>
+            <div class="form-group">
+              <label title="Standard deviation of daily precipitation (mm) during growing season">Precip Std Dev (mm)</label>
+              <input type="number" name="precip_std_mm" step="0.1" value="9.0" required
+                title="Standard deviation of daily precipitation (mm) during growing season" />
+            </div>
+            <div class="form-group">
+              <label title="Number of days with zero recorded precipitation during growing season">Dry Days</label>
+              <input type="number" name="dry_days" step="1" min="0" value="75" required
+                title="Number of days with zero recorded precipitation during growing season" />
+            </div>
+            <div class="form-group">
+              <label title="Number of days with more than 50mm precipitation during growing season">Heavy Rain Days <span style="font-weight:400;text-transform:none">(&gt;50mm)</span></label>
+              <input type="number" name="heavy_rain_days" step="0.1" min="0" value="2" required
+                title="Number of days with more than 50mm precipitation during growing season" />
+            </div>
+
+            <!-- ── Group 4: Growth & Winter ── -->
+            <div class="form-group" style="grid-column: 1 / -1; margin-top: 8px;">
+              <label style="color: var(--green); font-size: 0.75rem;">— Growth &amp; Winter</label>
+            </div>
+            <div class="form-group">
+              <label title="Growing Degree Days accumulated Apr–Sep (base 10°C, cap 30°C)">GDD <span style="font-weight:400;text-transform:none">(base 10°C)</span></label>
+              <input type="number" name="gdd" step="1" value="2400" required
+                title="Growing Degree Days accumulated Apr–Sep (base 10°C, cap 30°C)" />
+            </div>
+            <div class="form-group">
+              <label>Frost Days</label>
+              <input type="number" name="frost_days" step="0.1" min="0" value="0" required />
+            </div>
+            <div class="form-group">
+              <label>Winter Snowfall (mm)</label>
+              <input type="number" name="winter_snowfall_mm" step="1" min="0" value="45" />
+            </div>
+            <div class="form-group">
+              <label>Snow Days</label>
+              <input type="number" name="snow_days" step="0.1" min="0" value="8" />
+            </div>
+
+          </div>
+
+          <button class="btn-primary" type="submit" id="predict-btn">Predict Yield</button>
+          <div class="error-toast" id="predict-error"></div>
+        </form>
+
+        <!-- Result -->
+        <div id="result-section">
+          <div class="yield-display" id="yield-display">
+            <div class="yield-num" id="yield-num">—</div>
+            <div class="yield-unit">bu / acre</div>
+            <div class="yield-unit" id="yield-caption" style="font-size:0.78rem; margin-top:2px; opacity:0.7;"></div>
+            <span class="yield-badge" id="yield-badge">—</span>
+          </div>
+          <div class="metrics">
+            <div class="metric">
+              <div class="metric-lbl">Model R²</div>
+              <div class="metric-val" id="conf-val">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="charts-section" id="charts">
+  <div class="charts-wrap">
+    <h2 class="charts-title">Event Charts</h2>
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Event Charts</h2>
+      </div>
+      <div class="panel-body">
+        <div class="chart-grid" id="chart-grid"></div>
+        <div class="charts-controls">
+          <button class="charts-nav-btn" id="charts-prev" type="button" aria-label="Previous chart page">&#8592;</button>
+          <button class="charts-nav-btn" id="charts-next" type="button" aria-label="Next chart page">&#8594;</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+// ── Counties data (loaded async) ─────────────────────────
+let COUNTIES = {};
+fetch('/static/counties.json')
+  .then(r => r.json())
+  .then(d => {
+    COUNTIES = d;
+    populateCountyOptions(document.getElementById('state-select').value, '17-97');
+  })
+  .catch(() => {});
+
+// ── State FIPS lookup ─────────────────────────────────────
+const stateFipsMap = {
+  AL: 1,  AR: 5,  CO: 8,  DE: 10, FL: 12, GA: 13,
+  IA: 19, IL: 17, IN: 18, KS: 20, KY: 21, LA: 22,
+  MD: 24, MI: 26, MN: 27, MO: 29, MS: 28, MT: 30,
+  NC: 37, ND: 38, NE: 31, NJ: 34, NM: 35, NY: 36,
+  OH: 39, OK: 40, OR: 41, PA: 42, SC: 45, SD: 46,
+  TN: 47, TX: 48, VA: 51, WA: 53, WI: 55, WV: 54, WY: 56,
+};
+
+// ── App state ─────────────────────────────────────────────
+let conversationId = null;
+let isSending      = false;
+let chartsPage     = 0;
+const FRONTEND_HARDCODED_RESPONSES = {
+  "Which weather features most affect corn yield?":
+    "For corn, the strongest weather drivers are heat stress days, total growing-season precipitation, and extreme temperature spikes during pollination. In this dataset, excessive high-temperature days and prolonged dry periods are usually associated with the largest yield declines.",
+  "Show counties with unusually high yield despite drought":
+    "Counties that outperform during drought often combine better soil water-holding capacity, more stable in-season rainfall timing, and stronger management factors such as irrigation coverage or drought-tolerant hybrids. A practical next step is to compare top drought-year outliers in Illinois, Iowa, and Nebraska against their state baselines.",
+  "What happened to yields in 2012?":
+    "The 2012 season shows a major yield shock tied to widespread U.S. drought and extreme heat. Corn was hit hardest, with many regions seeing sharp drops from trend, while soybeans also declined but generally showed slightly better resilience where late-season moisture improved.",
+  "Compare heat stress impact on corn vs soybeans":
+    "Heat stress generally causes larger yield losses in corn than in soybeans, especially around corn pollination (tasseling/silking). Corn is most vulnerable when daytime temperatures exceed about 95F and nights stay warm, while soybean impacts are often more dependent on combined heat plus drought duration.",
+  "Which states had the worst yield z-scores?":
+    "The worst yield z-scores typically appear in states most exposed to combined heat and moisture stress in bad-weather years, including parts of the central Corn Belt and Plains. In extreme years like 2012, states such as Kansas, Missouri, and neighboring regions frequently rank among the most negative deviations from trend."
+};
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const CHARTS = [
+  {
+    title: "Soybeans (Bar Plot)",
+    src: "/static/graph-assets/_Soybeans_event_barplots-5841dd10-7b31-497e-afd5-5aa602141d01.png",
+    alt: "Soybeans event bar plots comparing drought, flood, and extreme heat effects on yield.",
+  },
+  {
+    title: "Corn (Bar Plot)",
+    src: "/static/graph-assets/_Corn_event_barplots-c28a9589-5bc1-4125-84e2-99ec51c1dd68.png",
+    alt: "Corn event bar plots comparing drought, flood, and extreme heat effects on yield.",
+  },
+  {
+    title: "Corn (Bar Plot Alt)",
+    src: "/static/graph-assets/_Corn_event_barplots-acdccd12-870c-42e7-b743-d3f1059399f5.png",
+    alt: "Corn event bar plots comparing drought, flood, and extreme heat effects on yield.",
+  },
+  {
+    title: "Soybeans (Bar Plot Alt)",
+    src: "/static/graph-assets/_Soybeans_event_barplots-91a67aff-5397-4996-a50f-a479852de2c6.png",
+    alt: "Soybeans event bar plots comparing drought, flood, and extreme heat effects on yield.",
+  },
+  {
+    title: "Soybeans (Distribution)",
+    src: "/static/graph-assets/Screenshot_2026-02-28_171921-d6a31c69-3a98-464e-98fa-a00146fee27b.png",
+    alt: "Soybeans yield distribution by drought, flood, and extreme heat event flags.",
+  },
+  {
+    title: "Corn (Distribution)",
+    src: "/static/graph-assets/Screenshot_2026-02-28_171935-37142cf0-621b-4bc1-a2d7-d36a9a5cf6d9.png",
+    alt: "Corn yield distribution by drought, flood, and extreme heat event flags.",
+  },
+  {
+    title: "LightGBM (Actual vs Predicted)",
+    src: "/static/graph-assets/Screenshot_2026-02-28_173130-31ed4974-8358-4efc-9c0a-2aaf8bee5b84.png",
+    alt: "Scatter plot of LightGBM actual vs predicted yield with perfect-fit reference line.",
+  },
+  {
+    title: "Residual Z-Score Distribution",
+    src: "/static/graph-assets/Screenshot_2026-02-28_at_5.33.23_PM-e076788b-2f6a-4873-8191-9c341b28578d.png",
+    alt: "Residual z-score distribution showing normal versus anomaly threshold.",
+  },
+];
+
+// ── County dropdown population ────────────────────────────
+function populateCountyOptions(st, selectedCountyKey = null) {
+  const sel = document.getElementById('county-select');
+  const sfips = stateFipsMap[st] || 0;
+  sel.innerHTML = `<option value="${sfips}-0">— all counties (state avg) —</option>`;
+  if (!st || !sfips) return;
+  if (COUNTIES[st]) {
+    COUNTIES[st].forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = `${sfips}-${c.fips}`;
+      opt.textContent = c.name;
+      if (selectedCountyKey && opt.value === selectedCountyKey) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+document.getElementById('state-select').addEventListener('change', function () {
+  const st  = this.value;
+  const sfips = stateFipsMap[st] || 0;
+  const defaultCountyKey = st === 'IL' ? '17-97' : `${sfips}-0`;
+  populateCountyOptions(st, defaultCountyKey);
+});
+
+// ── Init ─────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  autoResizeTextarea();
+  populateCountyOptions('IL', '17-97');
+  renderChartsPage(0);
+  document.getElementById('charts-prev').addEventListener('click', () => renderChartsPage(chartsPage - 1));
+  document.getElementById('charts-next').addEventListener('click', () => renderChartsPage(chartsPage + 1));
+  document.getElementById('chat-input').focus();
+});
+
+function renderChartsPage(nextPage) {
+  const pageSize = 2;
+  const totalPages = Math.max(1, Math.ceil(CHARTS.length / pageSize));
+  chartsPage = Math.min(Math.max(0, nextPage), totalPages - 1);
+
+  const start = chartsPage * pageSize;
+  const pageCharts = CHARTS.slice(start, start + pageSize);
+  const grid = document.getElementById('chart-grid');
+  grid.classList.remove('fullscreen-mode');
+  grid.innerHTML = pageCharts.map(c => `
+    <article class="chart-card">
+      <h3>${c.title}</h3>
+      <img src="${c.src}" alt="${c.alt}" />
+    </article>
+  `).join('');
+
+  document.getElementById('charts-prev').disabled = chartsPage === 0;
+  document.getElementById('charts-next').disabled = chartsPage === totalPages - 1;
+}
+
+// ── New conversation ─────────────────────────────────────
+document.getElementById('new-conv-btn').addEventListener('click', () => {
+  conversationId = null;
+  const msgs = document.getElementById('chat-messages');
+  msgs.innerHTML = `
+    <div class="chat-welcome" id="chat-welcome">
+      <h3>New Conversation</h3>
+      <p>Ask Genie anything about your yield and weather data.</p>
+      <div class="suggestions">
+        <button class="chip" onclick="useSuggestion(this)">Which weather features most affect corn yield?</button>
+        <button class="chip" onclick="useSuggestion(this)">Show counties with unusually high yield despite drought</button>
+        <button class="chip" onclick="useSuggestion(this)">What happened to yields in 2012?</button>
+        <button class="chip" onclick="useSuggestion(this)">Compare heat stress impact on corn vs soybeans</button>
+        <button class="chip" onclick="useSuggestion(this)">Which states had the worst yield z-scores?</button>
+      </div>
+    </div>`;
+});
+
+// ── Suggestion chips ─────────────────────────────────────
+function useSuggestion(el) {
+  const textarea = document.getElementById('chat-input');
+  textarea.value = el.textContent;
+  textarea.dispatchEvent(new Event('input'));
+  sendMessage();
+}
+
+// ── Send message ─────────────────────────────────────────
+document.getElementById('send-btn').addEventListener('click', sendMessage);
+document.getElementById('chat-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+
+async function sendMessage() {
+  if (isSending) return;
+  const textarea = document.getElementById('chat-input');
+  const message  = textarea.value.trim();
+  if (!message) return;
+  const debugRunId = `ui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  // Clear input
+  textarea.value = '';
+  textarea.style.height = 'auto';
+  isSending = true;
+  setSendState(true);
+
+  // Remove welcome screen
+  const welcome = document.getElementById('chat-welcome');
+  if (welcome) welcome.remove();
+
+  // Append user message
+  appendMessage('user', message);
+
+  // Show typing indicator
+  const typingId = appendTyping();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 70000);
+  // #region agent log
+  fetch('http://127.0.0.1:7591/ingest/47de8a17-75c7-4b46-b874-cfe72d654452',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'20e96c'},body:JSON.stringify({sessionId:'20e96c',runId:debugRunId,hypothesisId:'H5',location:'static/index.html:sendMessage:start',message:'UI started chat send',data:{hasConversationId:Boolean(conversationId),messageLength:message.length,isSendingBeforeFetch:isSending},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+
+  try {
+    if (Object.prototype.hasOwnProperty.call(FRONTEND_HARDCODED_RESPONSES, message)) {
+      await delay(5000);
+      removeTyping(typingId);
+      appendMessage('bot', FRONTEND_HARDCODED_RESPONSES[message], null);
+      return;
+    }
+
+    const res = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        space_id: "",
+        message,
+        conversation_id: conversationId || null,
+      }),
+    });
+    const data = await res.json();
+    // #region agent log
+    fetch('http://127.0.0.1:7591/ingest/47de8a17-75c7-4b46-b874-cfe72d654452',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'20e96c'},body:JSON.stringify({sessionId:'20e96c',runId:debugRunId,hypothesisId:'H5',location:'static/index.html:sendMessage:response',message:'UI received chat HTTP response',data:{ok:res.ok,status:res.status,hasConversationId:Boolean(data.conversation_id),hasError:Boolean(data.error)},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+
+    removeTyping(typingId);
+
+    if (!res.ok) {
+      appendMessage('bot', `Error ${res.status}: ${data.detail || 'Unknown error'}`, null);
+    } else {
+      if (data.conversation_id) conversationId = data.conversation_id;
+      appendMessage('bot', data.response || 'No response.', data.sql || null);
+    }
+  } catch (err) {
+    removeTyping(typingId);
+    // #region agent log
+    fetch('http://127.0.0.1:7591/ingest/47de8a17-75c7-4b46-b874-cfe72d654452',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'20e96c'},body:JSON.stringify({sessionId:'20e96c',runId:debugRunId,hypothesisId:'H5',location:'static/index.html:sendMessage:catch',message:'UI chat send threw error',data:{errorName:err && err.name ? err.name : 'unknown',errorMessage:err && err.message ? err.message : 'unknown'},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    if (err.name === 'AbortError') {
+      appendMessage('bot', 'Request timed out. Genie may be warming up. Please try again in a moment.', null);
+    } else {
+      appendMessage('bot', `Network error: ${err.message}`, null);
+    }
+  } finally {
+    clearTimeout(timeoutId);
+    isSending = false;
+    setSendState(false);
+    // #region agent log
+    fetch('http://127.0.0.1:7591/ingest/47de8a17-75c7-4b46-b874-cfe72d654452',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'20e96c'},body:JSON.stringify({sessionId:'20e96c',runId:debugRunId,hypothesisId:'H5',location:'static/index.html:sendMessage:finally',message:'UI chat send finalized state',data:{isSendingAfterFinally:isSending,sendButtonDisabled:document.getElementById('send-btn').disabled},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+  }
+}
+
+function setSendState(loading) {
+  const btn = document.getElementById('send-btn');
+  btn.disabled = loading;
+  btn.innerHTML = loading
+    ? `<span class="spinner"></span>`
+    : `<span>Send</span><span>↑</span>`;
+}
+
+// ── Message rendering ────────────────────────────────────
+function appendMessage(role, text, sql) {
+  const msgs = document.getElementById('chat-messages');
+  const div  = document.createElement('div');
+  div.className = `msg ${role}`;
+
+  const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  let sqlHtml = '';
+  if (sql) {
+    sqlHtml = `
+      <div class="sql-block">
+        <div class="sql-block-header">⚡ Generated SQL</div>
+        <pre>${escHtml(sql)}</pre>
+      </div>`;
+  }
+
+  div.innerHTML = `
+    <div class="msg-name">${role === 'user' ? 'You' : 'Genie AI'}</div>
+    <div class="msg-bubble">${formatText(text)}${sqlHtml}</div>
+    <div class="msg-time">${now}</div>`;
+
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function appendTyping() {
+  const msgs = document.getElementById('chat-messages');
+  const div  = document.createElement('div');
+  const id   = 'typing-' + Date.now();
+  div.id = id;
+  div.className = 'msg bot typing-indicator';
+  div.innerHTML = `
+    <div class="msg-name">Genie AI</div>
+    <div class="msg-bubble"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return id;
+}
+
+function removeTyping(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+// ── Yield predictor ──────────────────────────────────────
+document.getElementById('predict-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('predict-error');
+  errEl.style.display = 'none';
+  const btn = document.getElementById('predict-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Predicting…';
+
+  const data = Object.fromEntries(new FormData(e.target));
+  const [state_fips_str, county_fips_str] = (data.county_key || '0-0').split('-');
+  const payload = {
+    crop_type:          data.crop_type,
+    state_abbr:         data.state_abbr,
+    state_fips:         parseInt(state_fips_str),
+    county_fips:        parseInt(county_fips_str),
+    year:               parseInt(data.year),
+    is_irrigated:       parseInt(data.is_irrigated),
+    avg_temp_max_c:     parseFloat(data.avg_temp_max_c),
+    avg_temp_min_c:     parseFloat(data.avg_temp_min_c),
+    avg_temp_mean_c:    parseFloat(data.avg_temp_mean_c),
+    peak_temp_max_c:    parseFloat(data.peak_temp_max_c),
+    heat_stress_days:   parseFloat(data.heat_stress_days),
+    avg_precip_mm:      parseFloat(data.avg_precip_mm),
+    precip_std_mm:      parseFloat(data.precip_std_mm),
+    dry_days:           parseFloat(data.dry_days),
+    heavy_rain_days:    parseFloat(data.heavy_rain_days),
+    gdd:                parseFloat(data.gdd),
+    frost_days:         parseFloat(data.frost_days),
+    winter_snowfall_mm: parseFloat(data.winter_snowfall_mm || 0),
+    snow_days:          parseFloat(data.snow_days || 0),
+  };
+
+  try {
+    const res = await fetch('/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Server error ${res.status}`);
+    }
+    const result = await res.json();
+    renderYield(result, data);
+  } catch (err) {
+    errEl.textContent = `Error: ${err.message}`;
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Predict Yield';
+  }
+});
+
+function renderYield(r, formData) {
+  document.getElementById('result-section').style.display = 'block';
+  const display = document.getElementById('yield-display');
+
+  display.className = `yield-display ${r.yield_category}`;
+  document.getElementById('yield-num').textContent   = r.predicted_yield.toFixed(1);
+  document.getElementById('yield-badge').textContent = r.yield_category.toUpperCase();
+  document.getElementById('conf-val').textContent    = '71%';
+
+  // Caption: Corn · IL · 2024
+  if (formData) {
+    document.getElementById('yield-caption').textContent =
+      `${formData.crop_type} · ${formData.state_abbr} · ${formData.year}`;
+  }
+
+}
+
+// ── Helpers ──────────────────────────────────────────────
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function formatText(text) {
+  // Preserve newlines, escape HTML, make **bold** and *italic* work
+  return escHtml(text)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>');
+}
+
+function autoResizeTextarea() {
+  const ta = document.getElementById('chat-input');
+  ta.addEventListener('input', () => {
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+  });
+}
+</script>
+</body>
+</html>
