@@ -1,5 +1,19 @@
 # Delta Lake
 
+## Production (Databricks App)
+
+TerraCast in production uses **Unity Catalog Delta tables** accessed via **SQL Warehouse** from [`delta_store.py`](../delta_store.py) — not local PySpark on each request.
+
+- Setup: [SETUP_DATABRICKS.md](SETUP_DATABRICKS.md)
+- Schema: [DATA.md](DATA.md)
+- DDL: [sql/predictions_log.sql](../sql/predictions_log.sql)
+
+The `examples/python/` scripts and `data/delta/` paths below are for **local learning only** and are not wired into the FastAPI app.
+
+---
+
+## Local examples (optional)
+
 [Delta Lake](https://delta.io/) is an open-source storage layer for data lakes. It adds ACID transactions, scalable metadata, streaming/batch unification, schema enforcement, time travel, and merge/update/delete on top of object stores (S3, ADLS, GCS, HDFS, or local paths).
 
 TerraCast uses the **official examples** from [delta-io/delta/examples](https://github.com/delta-io/delta/tree/master/examples) (Apache 2.0). Do not fork custom tutorials here—run and learn from those scripts.

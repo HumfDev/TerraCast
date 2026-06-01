@@ -1,1 +1,15 @@
 command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+
+env:
+  - name: SQL_WAREHOUSE_ID
+    value: "b2bb07abff382b79"
+  - name: DELTA_TABLE_MERGED
+    value: "workspace.default.merged"
+  - name: DELTA_TABLE_PREDICTIONS
+    value: "workspace.default.predictions_log"
+  - name: MODEL_VOLUME_PATH
+    value: "/Volumes/workspace/terract/models"
+  - name: LAKEHOUSE_ENABLED
+    value: "true"
+  - name: LOG_PREDICTIONS
+    value: "true"

@@ -1,0 +1,23 @@
+# Local / secrets
+.env
+.env.*
+.venv/
+venv/
+__pycache__/
+.cursor/
+.idea/
+.vscode/
+.DS_Store
+data/
+*.log
+
+# Not needed in Databricks App runtime (lakehouse data is in UC)
+models/databricks_hackathon/
+examples/
+scripts/
+docs/
+sql/
+requirements-delta.txt
+
+# Optional dev artifacts
+.git/

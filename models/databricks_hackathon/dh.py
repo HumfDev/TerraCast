@@ -669,9 +669,9 @@ display(spark.sql("""
 # SAVE FINAL DATASET AS TABLE (optional, for further analysis)
 # =========================================================================
 
-# Uncomment below to persist as a Delta table:
-# final_df.write.mode("overwrite").saveAsTable("workspace.default.weather_yield_comprehensive")
-# print("Saved as workspace.default.weather_yield_comprehensive")
+# Persist merged yield+weather for TerraCast App + Genie (run once on cluster):
+# final_df.write.format("delta").mode("overwrite").saveAsTable("workspace.default.merged")
+# print("Saved as workspace.default.merged")
 
 print("\n" + "=" * 70)
 print("TASK 1 COMPLETE!")

@@ -20,7 +20,11 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import lightgbm as lgb
 
+from delta_store import get_store
+
 GENIE_SPACE_ID = os.environ.get("GENIE_SPACE_ID", "")
+LOG_PREDICTIONS = os.environ.get("LOG_PREDICTIONS", "true").lower() not in ("0", "false", "no")
+MODEL_VERSION = os.environ.get("MODEL_VERSION", "1")
 GENIE_TIMEOUT_SECONDS = int(os.environ.get("GENIE_TIMEOUT_SECONDS", "60"))
 HARDCODED_HEAT_STRESS_PROMPT = "Compare heat stress impact on corn vs soybeans"
 HARDCODED_HEAT_STRESS_RESPONSE = (
@@ -119,7 +123,8 @@ def _debug_log(run_id: str, hypothesis_id: str, location: str, message: str, dat
 # Model Loading
 # -------------------------------------------------------------------
 
-MODELS_DIR = Path("models")
+_volume = (os.environ.get("MODEL_VOLUME_PATH") or "").strip()
+MODELS_DIR = Path(_volume) if _volume else Path("models")
 
 
 def _load_lgb(name):
@@ -142,11 +147,34 @@ SOY_BASELINES  = _load_json("soybean_baselines.json")
 # Fallback global trend if state not found (median of US corn/soy trends)
 GLOBAL_TREND = {"corn": [130.0, 2.2], "soybeans": [36.0, 0.55]}
 
+_MODEL_FILES = (
+    "corn_model.txt",
+    "soybean_model.txt",
+    "corn_trend.json",
+    "soybean_trend.json",
+    "corn_baselines.json",
+    "soybean_baselines.json",
+)
+
+
+def _models_loaded() -> dict[str, bool]:
+    return {name: (MODELS_DIR / name).exists() for name in _MODEL_FILES}
+
+
+def _all_models_loaded() -> bool:
+    return all(_models_loaded().values())
+
+
 print("=" * 58)
-print(f"  Corn model:     {'✓ loaded' if CORN_MODEL else '✗ missing — export from Databricks'}")
-print(f"  Soybean model:  {'✓ loaded' if SOY_MODEL else '✗ missing — export from Databricks'}")
+print(f"  Models dir:     {MODELS_DIR}")
+print(f"  Corn model:     {'✓ loaded' if CORN_MODEL else '✗ missing'}")
+print(f"  Soybean model:  {'✓ loaded' if SOY_MODEL else '✗ missing'}")
 print(f"  Corn trend:     {'✓' if CORN_TREND else '✗ missing'} ({len(CORN_TREND)} states)")
 print(f"  Soybean trend:  {'✓' if SOY_TREND else '✗ missing'} ({len(SOY_TREND)} states)")
+_store_cfg = get_store().config
+print(f"  Lakehouse:      {'✓ configured' if _store_cfg.enabled else '✗ set SQL_WAREHOUSE_ID'}")
+if _store_cfg.enabled:
+    print(f"  Merged table:   {_store_cfg.merged_table}")
 print("=" * 58)
 
 
@@ -183,6 +211,30 @@ class PredictionResult(BaseModel):
     yield_category: str
     confidence: float
     timestamp: str
+
+
+class FeaturesResponse(BaseModel):
+    state_fips: int
+    county_fips: int
+    state_abbr: str
+    year: int
+    crop_type: str
+    is_irrigated: int
+    avg_temp_max_c: float
+    avg_temp_min_c: float
+    avg_temp_mean_c: float
+    peak_temp_max_c: float
+    heat_stress_days: float
+    avg_precip_mm: float
+    precip_std_mm: float
+    dry_days: float
+    heavy_rain_days: float
+    gdd: float
+    frost_days: float
+    winter_snowfall_mm: float = 0.0
+    snow_days: float = 0.0
+    actual_yield: Optional[float] = None
+    source: str = "lakehouse"
 
 
 def _fallback_predict_yield(
@@ -532,9 +584,73 @@ async def root():
         return HTMLResponse(content=f.read())
 
 
+def _fetch_features_sync(
+    state_abbr: str,
+    county_fips: int,
+    year: int,
+    crop_type: str,
+    is_irrigated: int,
+) -> Optional[dict]:
+    return get_store().fetch_features(
+        state_abbr, county_fips, year, crop_type, is_irrigated
+    )
+
+
+def _log_prediction_sync(inp: YieldInput, result: PredictionResult) -> bool:
+    if not LOG_PREDICTIONS:
+        return False
+    return get_store().log_prediction(
+        inp.model_dump(),
+        result.model_dump(),
+        model_version=MODEL_VERSION,
+    )
+
+
+@app.get("/features", response_model=FeaturesResponse)
+async def get_features(
+    state_abbr: str,
+    county_fips: int = 0,
+    year: int = 2022,
+    crop_type: str = "Corn",
+    is_irrigated: int = 0,
+):
+    store = get_store()
+    if not store.is_configured:
+        raise HTTPException(
+            status_code=503,
+            detail="Lakehouse not configured. Set SQL_WAREHOUSE_ID and DELTA_TABLE_MERGED.",
+        )
+    loop = asyncio.get_event_loop()
+    try:
+        row = await loop.run_in_executor(
+            _executor,
+            _fetch_features_sync,
+            state_abbr,
+            county_fips,
+            year,
+            crop_type,
+            is_irrigated,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Lakehouse query failed: {exc}") from exc
+
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No matching row in merged yield+weather table.",
+        )
+    return FeaturesResponse(**row)
+
+
 @app.post("/predict", response_model=PredictionResult)
 async def predict(inp: YieldInput):
-    return predict_yield(inp)
+    result = predict_yield(inp)
+    if LOG_PREDICTIONS and get_store().config.predictions_table:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(_executor, _log_prediction_sync, inp, result)
+    return result
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -600,11 +716,30 @@ async def list_crops():
 
 @app.get("/health")
 async def health():
+    store = get_store()
+    merged_ok = False
+    if store.is_configured:
+        loop = asyncio.get_event_loop()
+        merged_ok = await loop.run_in_executor(_executor, store.ping_merged)
+
+    models = _models_loaded()
     return {
         "status": "ok",
         "app": "TerraCast",
         "databricks_host": os.environ.get("DATABRICKS_HOST", "local"),
         "timestamp": datetime.utcnow().isoformat() + "Z",
+        "lakehouse": {
+            "enabled": store.is_configured,
+            "merged_table": store.config.merged_table,
+            "merged_table_reachable": merged_ok,
+            "predictions_table": store.config.predictions_table,
+            "log_predictions": LOG_PREDICTIONS,
+        },
+        "models": {
+            "path": str(MODELS_DIR),
+            "all_loaded": _all_models_loaded(),
+            "files": models,
+        },
     }
 
 
