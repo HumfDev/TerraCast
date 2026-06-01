@@ -21,3 +21,10 @@ build/
 
 # OS
 .DS_Store
+
+# Delta Lake / Spark local artifacts
+data/
+metastore_db/
+derby.log
+.spark/
+*.log
