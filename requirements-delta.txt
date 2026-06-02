@@ -1,0 +1,6 @@
+# Local Delta Lake + PySpark (optional; main app does not require these)
+# Examples: examples/python/ — run via scripts/spark-submit-delta.sh (see docs/DELTA_LAKE.md)
+#
+# Versions follow https://docs.delta.io/releases/ (Delta 3.2.x ↔ Spark 3.5.x)
+pyspark==3.5.3
+delta-spark==3.2.1

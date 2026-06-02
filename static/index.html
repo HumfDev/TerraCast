@@ -936,7 +936,57 @@ document.getElementById('state-select').addEventListener('change', function () {
   const sfips = stateFipsMap[st] || 0;
   const defaultCountyKey = st === 'IL' ? '17-97' : `${sfips}-0`;
   populateCountyOptions(st, defaultCountyKey);
+  loadFeaturesFromLakehouse();
 });
+
+// ── Lakehouse feature prefill (UC Delta via GET /features) ──
+const FEATURE_INPUT_NAMES = [
+  'avg_temp_max_c', 'avg_temp_min_c', 'avg_temp_mean_c', 'peak_temp_max_c',
+  'heat_stress_days', 'avg_precip_mm', 'precip_std_mm', 'dry_days', 'heavy_rain_days',
+  'gdd', 'frost_days', 'winter_snowfall_mm', 'snow_days',
+];
+
+let featuresLoadTimer = null;
+
+async function loadFeaturesFromLakehouse() {
+  const form = document.getElementById('predict-form');
+  if (!form || !form.crop_type?.value || !form.state_abbr?.value) return;
+
+  const countyKey = form.county_key?.value || '0-0';
+  const countyFips = parseInt(countyKey.split('-')[1], 10) || 0;
+
+  const params = new URLSearchParams({
+    state_abbr: form.state_abbr.value,
+    county_fips: String(countyFips),
+    year: form.year.value,
+    crop_type: form.crop_type.value,
+    is_irrigated: form.is_irrigated.value,
+  });
+
+  try {
+    const res = await fetch('/features?' + params.toString());
+    if (!res.ok) return;
+    const data = await res.json();
+    FEATURE_INPUT_NAMES.forEach((name) => {
+      const input = form.elements[name];
+      if (input && data[name] != null && !Number.isNaN(Number(data[name]))) {
+        input.value = Number(data[name]);
+      }
+    });
+  } catch (_) {
+    /* lakehouse optional when SQL warehouse not configured */
+  }
+}
+
+function scheduleFeaturesLoad() {
+  clearTimeout(featuresLoadTimer);
+  featuresLoadTimer = setTimeout(loadFeaturesFromLakehouse, 300);
+}
+
+document.getElementById('county-select')?.addEventListener('change', scheduleFeaturesLoad);
+document.querySelector('[name="year"]')?.addEventListener('change', scheduleFeaturesLoad);
+document.querySelector('[name="crop_type"]')?.addEventListener('change', scheduleFeaturesLoad);
+document.querySelector('[name="is_irrigated"]')?.addEventListener('change', scheduleFeaturesLoad);
 
 // ── Init ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -946,6 +996,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('charts-prev').addEventListener('click', () => renderChartsPage(chartsPage - 1));
   document.getElementById('charts-next').addEventListener('click', () => renderChartsPage(chartsPage + 1));
   document.getElementById('chat-input').focus();
+  scheduleFeaturesLoad();
 });
 
 function renderChartsPage(nextPage) {
