@@ -10,8 +10,18 @@ import json
 import os
 import re
 import time
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Any, Optional
+
+
+def _cached_token(host: str) -> Optional[str]:
+    try:
+        cache = Path.home() / ".databricks" / "token-cache.json"
+        data = json.loads(cache.read_text())
+        return data.get("tokens", {}).get(host, {}).get("access_token")
+    except Exception:
+        return None
 
 _TABLE_RE = re.compile(r"^[a-zA-Z0-9_.]+$")
 
@@ -70,7 +80,12 @@ class DeltaStore:
     def _workspace(self):
         if self._client is None:
             from databricks.sdk import WorkspaceClient
-            self._client = WorkspaceClient()
+            host = os.environ.get("DATABRICKS_HOST", "")
+            token = _cached_token(host)
+            if token:
+                self._client = WorkspaceClient(host=host, token=token)
+            else:
+                self._client = WorkspaceClient(host=host, auth_type="external-browser")
         return self._client
 
     def _execute(self, sql: str, wait_timeout: str = "50s") -> list[dict[str, Any]]:
@@ -89,24 +104,24 @@ class DeltaStore:
         statement_id = resp.statement_id
         status = resp.status
         deadline = time.time() + 55
-        while status is not None and status.state in ("PENDING", "RUNNING"):
+        while True:
+            s = w.statement_execution.get_statement(statement_id)
+            state = s.status.state.value if hasattr(s.status.state, "value") else str(s.status.state)
+            if state not in ("PENDING", "RUNNING"):
+                break
             if time.time() > deadline:
                 raise TimeoutError("Databricks SQL statement timed out")
             time.sleep(0.35)
-            status = w.statement_execution.get_statement(statement_id).status
 
-        if status is None or status.state != "SUCCEEDED":
-            err = getattr(status, "error", None) if status else None
-            msg = getattr(err, "message", None) or str(status)
-            raise RuntimeError(f"SQL failed: {msg}")
+        if state != "SUCCEEDED":
+            raise RuntimeError(f"SQL failed [{state}]: {s.status}")
 
-        result = w.statement_execution.get_statement(statement_id).result
-        if result is None or not result.data_array:
+        if not s.result or not s.result.data_array:
             return []
 
-        columns = [c.name for c in (result.manifest.columns or [])]
+        columns = [c.name for c in s.manifest.schema.columns]
         rows = []
-        for raw in result.data_array:
+        for raw in s.result.data_array:
             row = {col: raw[i] if i < len(raw) else None for i, col in enumerate(columns)}
             rows.append(row)
         return rows
@@ -184,6 +199,7 @@ class DeltaStore:
         inp: dict[str, Any],
         result: dict[str, Any],
         model_version: str = "1",
+        region: str = "",
     ) -> bool:
         if not self.config.predictions_table:
             return False
@@ -192,7 +208,7 @@ class DeltaStore:
         sql = f"""
         INSERT INTO {table} (
           predicted_at, crop_type, state_abbr, state_fips, county_fips, year,
-          is_irrigated, predicted_yield, yield_category, model_version, input_json
+          is_irrigated, predicted_yield, yield_category, model_version, input_json, region
         ) VALUES (
           current_timestamp(),
           '{str(result.get("crop_type", "")).replace("'", "''")}',
@@ -204,7 +220,8 @@ class DeltaStore:
           {float(result.get("predicted_yield") or 0)},
           '{str(result.get("yield_category", "")).replace("'", "''")}',
           '{model_version.replace("'", "''")}',
-          '{payload}'
+          '{payload}',
+          '{region.replace("'", "''")}'
         )
         """
         try:

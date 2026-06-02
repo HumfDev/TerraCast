@@ -1,0 +1,1 @@
+& "C:\Users\Skyler\AppData\Local\Microsoft\WinGet\Packages\Databricks.DatabricksCLI_Microsoft.Winget.Source_8wekyb3d8bbwe\databricks.exe" auth login --host https://dbc-72018123-58b0.cloud.databricks.com

@@ -4,7 +4,6 @@ import time
 import asyncio
 import threading
 from datetime import timedelta
-import numpy as np
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -18,7 +17,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-import lightgbm as lgb
+import pickle
 
 from delta_store import get_store
 
@@ -35,7 +34,7 @@ HARDCODED_HEAT_STRESS_RESPONSE = (
     "if moisture returns. In practical terms, expect stronger short-term yield sensitivity in corn, while "
     "soybean losses are usually more tied to combined heat + drought duration."
 )
-DEBUG_LOG_PATH = Path("/Users/humphreyhuang/Desktop/TerraCast/.cursor/debug-20e96c.log")
+DEBUG_LOG_PATH = Path(__file__).parent / ".cursor" / "debug-20e96c.log"
 DEBUG_SESSION_ID = "20e96c"
 
 app = FastAPI(title="TerraCast", description="Weather-based crop yield prediction + Genie AI")
@@ -127,9 +126,12 @@ _volume = (os.environ.get("MODEL_VOLUME_PATH") or "").strip()
 MODELS_DIR = Path(_volume) if _volume else Path("models")
 
 
-def _load_lgb(name):
+def _load_pkl(name):
     p = MODELS_DIR / name
-    return lgb.Booster(model_file=str(p)) if p.exists() else None
+    if not p.exists():
+        return None
+    with p.open("rb") as f:
+        return pickle.load(f)
 
 
 def _load_json(name):
@@ -137,38 +139,41 @@ def _load_json(name):
     return json.loads(p.read_text()) if p.exists() else {}
 
 
-CORN_MODEL     = _load_lgb("corn_model.txt")
-SOY_MODEL      = _load_lgb("soybean_model.txt")
+# Regional models: midwest / plains / south
+REGIONAL_MODELS = {
+    ("corn",      "midwest"):  _load_pkl("lgbm_corn_midwest.pkl"),
+    ("corn",      "plains"):   _load_pkl("lgbm_corn_plains.pkl"),
+    ("corn",      "south"):    _load_pkl("lgbm_corn_south.pkl"),
+    ("soybeans",  "midwest"):  _load_pkl("lgbm_soybeans_midwest.pkl"),
+    ("soybeans",  "plains"):   _load_pkl("lgbm_soybeans_plains.pkl"),
+    ("soybeans",  "south"):    _load_pkl("lgbm_soybeans_south.pkl"),
+}
+
+# State → region mapping
+_REGION_MAP = {
+    "midwest": {"IA", "IL", "IN", "MI", "MN", "MO", "ND", "OH", "SD", "WI"},
+    "plains":  {"CO", "KS", "MT", "NE", "OK", "TX", "WY"},
+    "south":   {"AL", "AR", "FL", "GA", "KY", "LA", "MS", "NC", "SC", "TN", "VA", "MD", "DE"},
+}
+_STATE_TO_REGION = {st: r for r, states in _REGION_MAP.items() for st in states}
+
+
+def _get_region(state_abbr: str) -> str:
+    return _STATE_TO_REGION.get(state_abbr.upper(), "midwest")
+
+
 CORN_TREND     = _load_json("corn_trend.json")
 SOY_TREND      = _load_json("soybean_trend.json")
 CORN_BASELINES = _load_json("corn_baselines.json")
 SOY_BASELINES  = _load_json("soybean_baselines.json")
 
-# Fallback global trend if state not found (median of US corn/soy trends)
 GLOBAL_TREND = {"corn": [130.0, 2.2], "soybeans": [36.0, 0.55]}
 
-_MODEL_FILES = (
-    "corn_model.txt",
-    "soybean_model.txt",
-    "corn_trend.json",
-    "soybean_trend.json",
-    "corn_baselines.json",
-    "soybean_baselines.json",
-)
-
-
-def _models_loaded() -> dict[str, bool]:
-    return {name: (MODELS_DIR / name).exists() for name in _MODEL_FILES}
-
-
-def _all_models_loaded() -> bool:
-    return all(_models_loaded().values())
-
+_loaded_regions = [r for (_, r), m in REGIONAL_MODELS.items() if m is not None]
 
 print("=" * 58)
 print(f"  Models dir:     {MODELS_DIR}")
-print(f"  Corn model:     {'✓ loaded' if CORN_MODEL else '✗ missing'}")
-print(f"  Soybean model:  {'✓ loaded' if SOY_MODEL else '✗ missing'}")
+print(f"  Regional models: {len(_loaded_regions)}/6 loaded  ({', '.join(sorted(set(_loaded_regions))) or 'none'})")
 print(f"  Corn trend:     {'✓' if CORN_TREND else '✗ missing'} ({len(CORN_TREND)} states)")
 print(f"  Soybean trend:  {'✓' if SOY_TREND else '✗ missing'} ({len(SOY_TREND)} states)")
 _store_cfg = get_store().config
@@ -207,6 +212,7 @@ class YieldInput(BaseModel):
 class PredictionResult(BaseModel):
     crop_type: str
     region: str
+    model_region: str = ""
     predicted_yield: float
     yield_category: str
     confidence: float
@@ -269,57 +275,49 @@ def _fallback_predict_yield(
     return max(1.0, round(predicted, 1))
 
 
-def engineer_features(inp: YieldInput, state_baseline: float, county_baseline: float) -> np.ndarray:
+def engineer_features(inp: YieldInput, state_baseline: float, county_baseline: float):
+    import pandas as pd
     drought_flag      = 1 if inp.avg_precip_mm < 200 and inp.heat_stress_days > 10 else 0
     extreme_heat_flag = 1 if inp.heat_stress_days > 20 else 0
-    yt = inp.year - 2010
+    flood_flag        = 1 if inp.heavy_rain_days > 5 else 0
+    yt                = inp.year - 2010
 
-    temp_range       = inp.avg_temp_max_c - inp.avg_temp_min_c
-    peak_vs_mean     = inp.peak_temp_max_c - inp.avg_temp_mean_c
-    temp_stress_idx  = inp.peak_temp_max_c * inp.heat_stress_days
-    precip_cv        = inp.precip_std_mm / (inp.avg_precip_mm + 1)
-    heat_dry_combo   = inp.heat_stress_days * inp.dry_days
-    extreme_events   = drought_flag + extreme_heat_flag
-    gdd_precip       = inp.gdd * inp.avg_precip_mm
-    gdd_per_precip   = inp.gdd / (inp.avg_precip_mm + 1)
-    peak_temp_sq     = inp.peak_temp_max_c ** 2
-    log_heat_days    = np.log1p(inp.heat_stress_days)
-    opt_temp_score   = -abs(inp.avg_temp_mean_c - 22.5)
-    temprange_x_heat = temp_range * inp.heat_stress_days
-    peak_x_heat      = inp.peak_temp_max_c * inp.heat_stress_days
-    extreme_x_precip = extreme_heat_flag * inp.avg_precip_mm
-    gdd_x_heat       = inp.gdd * inp.heat_stress_days
-    gdd_x_precip     = inp.gdd * inp.avg_precip_mm
-    precip_x_snow    = inp.avg_precip_mm * inp.snow_days
-    extreme_x_dry    = extreme_events * inp.dry_days
-    gdd_x_extreme    = inp.gdd * extreme_events
-    stress_gdd_ratio = inp.heat_stress_days * inp.peak_temp_max_c / (inp.gdd + 1)
-    cool_moist       = (50 - inp.avg_temp_min_c) * inp.avg_precip_mm
-    gdd_precip_heat  = inp.gdd * inp.avg_precip_mm / (inp.heat_stress_days + 1)
-    year_x_extreme   = yt * extreme_events
-    year_x_precip    = yt * inp.avg_precip_mm
-    year_x_heat      = yt * inp.heat_stress_days
-
-    return np.array([[
-        inp.avg_temp_max_c, inp.avg_temp_mean_c, inp.peak_temp_max_c,
-        temp_range, peak_vs_mean, temp_stress_idx, inp.heat_stress_days,
-        peak_temp_sq, log_heat_days, opt_temp_score,
-        inp.avg_precip_mm, inp.dry_days, inp.heavy_rain_days, precip_cv,
-        heat_dry_combo, extreme_events, drought_flag, extreme_heat_flag,
-        extreme_x_dry, gdd_x_extreme, stress_gdd_ratio,
-        inp.gdd, gdd_precip, gdd_per_precip, gdd_precip_heat, cool_moist,
-        inp.frost_days, inp.winter_snowfall_mm, inp.snow_days,
-        temprange_x_heat, peak_x_heat, extreme_x_precip,
-        gdd_x_heat, gdd_x_precip, precip_x_snow,
-        yt, year_x_extreme, year_x_precip, year_x_heat,
-        inp.is_irrigated,
-        state_baseline, county_baseline,
-    ]])
+    return pd.DataFrame([{
+        "avg_temp_max_c":      inp.avg_temp_max_c,
+        "avg_temp_mean_c":     inp.avg_temp_mean_c,
+        "peak_temp_max_c":     inp.peak_temp_max_c,
+        "temp_range":          inp.avg_temp_max_c - inp.avg_temp_min_c,
+        "temp_stress_index":   inp.peak_temp_max_c * inp.heat_stress_days,
+        "optimal_temp_score":  -abs(inp.avg_temp_mean_c - 22.5),
+        "heat_stress_days":    inp.heat_stress_days,
+        "frost_days":          inp.frost_days,
+        "avg_precip_mm":       inp.avg_precip_mm,
+        "dry_days":            inp.dry_days,
+        "heavy_rain_days":     inp.heavy_rain_days,
+        "precip_cv":           inp.precip_std_mm / (inp.avg_precip_mm + 1),
+        "winter_snowfall_mm":  inp.winter_snowfall_mm,
+        "snow_days":           inp.snow_days,
+        "drought_flag":        drought_flag,
+        "extreme_heat_flag":   extreme_heat_flag,
+        "flood_flag":          flood_flag,
+        "extreme_events":      drought_flag + extreme_heat_flag,
+        "heat_dry_combo":      inp.heat_stress_days * inp.dry_days,
+        "gdd":                 inp.gdd,
+        "gdd_precip":          inp.gdd * inp.avg_precip_mm,
+        "gdd_per_precip":      inp.gdd / (inp.avg_precip_mm + 1),
+        "year_trend":          yt,
+        "year_x_precip":       yt * inp.avg_precip_mm,
+        "year_x_heat":         yt * inp.heat_stress_days,
+        "is_irrigated":        inp.is_irrigated,
+        "state_baseline":      state_baseline,
+        "county_baseline":     county_baseline,
+    }])
 
 
 def predict_yield(inp: YieldInput) -> PredictionResult:
     crop_key  = "corn" if inp.crop_type.lower() == "corn" else "soybeans"
-    model     = CORN_MODEL if crop_key == "corn" else SOY_MODEL
+    region    = _get_region(inp.state_abbr)
+    model     = REGIONAL_MODELS.get((crop_key, region))
     trend_d   = CORN_TREND if crop_key == "corn" else SOY_TREND
     baselines = CORN_BASELINES if crop_key == "corn" else SOY_BASELINES
 
@@ -339,8 +337,8 @@ def predict_yield(inp: YieldInput) -> PredictionResult:
 
     if model is not None:
         X = engineer_features(inp, state_bl, effective_county_bl)
-        yield_anomaly = float(model.predict(X)[0])
-        predicted = round(yield_anomaly + trend_val, 1)
+        raw = model.predict(X)
+        predicted = round(float(raw.iloc[0, 0] if hasattr(raw, "iloc") else raw[0]), 1)
     else:
         predicted = _fallback_predict_yield(inp, crop_key, trend_val, state_bl, effective_county_bl)
 
@@ -356,6 +354,7 @@ def predict_yield(inp: YieldInput) -> PredictionResult:
     return PredictionResult(
         crop_type=inp.crop_type,
         region=inp.state_abbr,
+        model_region=region,
         predicted_yield=predicted,
         yield_category=cat,
         confidence=0.71,
@@ -403,7 +402,10 @@ def _ask_genie_sync(space_id: str, message: str, conversation_id: Optional[str],
         }
 
     try:
-        w = WorkspaceClient()
+        w = WorkspaceClient(
+            host=os.environ.get("DATABRICKS_HOST", "https://community.cloud.databricks.com"),
+            auth_type="external-browser",
+        )
         genie_result = None
         new_conv_id = conversation_id
         timeout = timedelta(seconds=GENIE_TIMEOUT_SECONDS)
@@ -580,7 +582,7 @@ def _ask_genie_sync(space_id: str, message: str, conversation_id: Optional[str],
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    with open("static/index.html", "r") as f:
+    with open("static/index.html", "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
 
@@ -603,6 +605,7 @@ def _log_prediction_sync(inp: YieldInput, result: PredictionResult) -> bool:
         inp.model_dump(),
         result.model_dump(),
         model_version=MODEL_VERSION,
+        region=result.model_region,
     )
 
 
@@ -722,7 +725,8 @@ async def health():
         loop = asyncio.get_event_loop()
         merged_ok = await loop.run_in_executor(_executor, store.ping_merged)
 
-    models = _models_loaded()
+    loaded = {f"{c}_{r}": (REGIONAL_MODELS.get((c, r)) is not None)
+              for c in ("corn", "soybeans") for r in ("midwest", "plains", "south")}
     return {
         "status": "ok",
         "app": "TerraCast",
@@ -737,8 +741,8 @@ async def health():
         },
         "models": {
             "path": str(MODELS_DIR),
-            "all_loaded": _all_models_loaded(),
-            "files": models,
+            "all_loaded": all(loaded.values()),
+            "regional": loaded,
         },
     }
 
