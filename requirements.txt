@@ -1,9 +1,9 @@
 databricks-sdk>=0.33.0  # Genie + SQL Warehouse (delta_store lakehouse)
 fastapi==0.109.0
 uvicorn==0.27.0
-pydantic==2.12.5
+pydantic>=2.6,<2.8
 aiofiles==23.2.1
 python-multipart==0.0.9
 python-dotenv==1.0.0
 lightgbm>=4.0.0
-numpy>=1.24
+numpy>=1.24,<2

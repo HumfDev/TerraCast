@@ -81,11 +81,14 @@ class DeltaStore:
         if self._client is None:
             from databricks.sdk import WorkspaceClient
             host = os.environ.get("DATABRICKS_HOST", "")
-            token = _cached_token(host)
-            if token:
-                self._client = WorkspaceClient(host=host, token=token)
+            if os.environ.get("DATABRICKS_CLIENT_ID") and os.environ.get("DATABRICKS_CLIENT_SECRET"):
+                self._client = WorkspaceClient()
             else:
-                self._client = WorkspaceClient(host=host, auth_type="external-browser")
+                token = _cached_token(host)
+                if token:
+                    self._client = WorkspaceClient(host=host, token=token)
+                else:
+                    self._client = WorkspaceClient(host=host, auth_type="external-browser")
         return self._client
 
     def _execute(self, sql: str, wait_timeout: str = "50s") -> list[dict[str, Any]]:

@@ -3,1094 +3,1851 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TerraCast — Yield Prediction + Genie AI</title>
+  <title>TerraCast — Weather-Based Crop Yield Prediction</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
   <style>
     :root {
-      --green: #2d7a2d;
-      --green-l: #4caf50;
-      --green-dk: #1b5e20;
-      --bg: #f6faff;
-      --page-gradient: linear-gradient(180deg, #f2f9ff 0%, #edf7f1 100%);
-      --card: #ffffff;
-      --text: #1a1f2e;
-      --muted: #6b7280;
-      --border: #d8e6d8;
-      --radius: 16px;
-      --shadow: 0 18px 40px rgba(20, 55, 90, 0.14);
+      --green-50:  #ecf7ed;
+      --green-100: #d6efd9;
+      --green-200: #a8d8ad;
+      --green-500: #2d7a2d;
+      --green-600: #1f6320;
+      --green-700: #154d17;
+
+      --bg:        #f7f9f7;
+      --surface:   #ffffff;
+      --surface-2: #fbfcfb;
+      --border:    #e5e7eb;
+      --border-2:  #eef0ee;
+
+      --text:      #111827;
+      --text-2:    #374151;
+      --muted:     #6b7280;
+      --muted-2:   #9ca3af;
+
+      --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04);
+      --shadow:    0 4px 14px rgba(16, 24, 40, 0.06);
+      --shadow-lg: 0 18px 40px rgba(16, 24, 40, 0.08);
+
+      --radius-sm: 8px;
+      --radius:    12px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+
+      --sidebar-w: 280px;
+      --content-max: 920px;
+
+      --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     }
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html { scroll-behavior: smooth; }
+    html, body { height: 100%; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--page-gradient);
-      color: var(--text);
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
-
-    /* ── Hero ─────────────────────────────────────────────── */
-    .hero-section {
-      min-height: 100vh;
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      isolation: isolate;
-    }
-    .hero-section::before {
-      content: none;
-    }
-    .hero-section::after {
-      content: none;
-    }
-
-    header {
-      color: #114321;
-      padding: 20px 30px;
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      flex-shrink: 0;
-    }
-    .header-logo { font-size: 1.9rem; line-height: 1; }
-    .header-title { font-size: 1.45rem; font-weight: 700; letter-spacing: -0.4px; }
-    .header-sub { font-size: 0.8rem; opacity: 0.84; margin-top: 2px; }
-    .section-nav {
-      margin-left: auto;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-    .section-link {
-      text-decoration: none;
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.3px;
-      color: #1e4f2c;
-      background: rgba(255,255,255,0.66);
-      border: 1px solid rgba(17, 67, 33, 0.16);
-      border-radius: 999px;
-      padding: 6px 12px;
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      transition: transform 0.15s ease, background 0.2s ease;
-    }
-    .section-link:hover {
-      transform: translateY(-1px);
-      background: rgba(255,255,255,0.82);
-    }
-    .header-badge {
-      margin-left: 8px;
-      background: rgba(255,255,255,0.66);
-      border: 1px solid rgba(17, 67, 33, 0.16);
-      border-radius: 999px;
-      padding: 6px 14px;
-      font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.3px;
-      color: #1e4f2c;
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-    }
-
-    .hero-center {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 16px 20px 46px;
-    }
-    .hero-stack {
-      width: min(920px, 96vw);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 14px;
-    }
-    .hero-title {
-      font-size: clamp(1.8rem, 4vw, 3.2rem);
-      color: #14364f;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      text-align: center;
-      text-shadow: 0 2px 20px rgba(255,255,255,0.42);
-    }
-    .chat-shell {
-      width: 100%;
-      height: min(70vh, 720px);
-      min-height: 460px;
-      background: rgba(255, 255, 255, 0.82);
-      border: 1px solid rgba(255, 255, 255, 0.8);
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-    }
-
-    /* ── Section 2: Yield Predictor ──────────────────────── */
-    .predictor-section {
-      min-height: 100vh;
-      padding: 20px 16px 24px;
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-    }
-    .predictor-wrap {
-      width: min(980px, 96vw);
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-    .predictor-title {
-      text-align: center;
-      color: #1f3f4c;
-      font-size: clamp(1.25rem, 2.5vw, 2rem);
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-    .predictor-subtitle {
-      text-align: center;
-      color: #506974;
-      font-size: 0.88rem;
-    }
-
-    /* ── Section 3: Charts ───────────────────────────────── */
-    .charts-section {
-      min-height: 100vh;
-      padding: 20px 16px 24px;
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-    }
-    .charts-wrap {
-      width: min(980px, 96vw);
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-    .charts-title {
-      text-align: center;
-      color: #1f3f4c;
-      font-size: clamp(1.25rem, 2.5vw, 2rem);
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-    .charts-controls {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      margin-top: 12px;
-    }
-    .charts-nav-btn {
-      width: 36px;
-      height: 36px;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      background: #fff;
-      color: var(--text);
-      cursor: pointer;
-      font-size: 1rem;
-      font-weight: 700;
-      line-height: 1;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .charts-nav-btn:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-    }
-    .chart-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-    .chart-card {
-      background: #fff;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px;
-      box-shadow: 0 6px 18px rgba(16, 44, 29, 0.08);
-    }
-    .chart-card h3 {
-      color: var(--green);
-      font-size: 0.82rem;
-      margin-bottom: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-    }
-    .chart-card img {
-      width: 100%;
-      display: block;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: #fff;
-      max-height: 48vh;
-      object-fit: contain;
-    }
-    .chart-grid.fullscreen-mode {
-      grid-template-columns: 1fr;
-    }
-    .chart-card.fullscreen h3 {
-      font-size: 0.9rem;
-    }
-    .chart-card.fullscreen img {
-      max-height: 78vh;
-    }
-
-    /* ── Panel card ─────────────────────────────────────── */
-    .panel {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: 0 10px 30px rgba(16, 44, 29, 0.12);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      min-height: 0;
-    }
-    .panel-header {
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-shrink: 0;
-      background: rgba(255, 255, 255, 0.88);
-    }
-    .panel-header h2 {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: var(--green);
-    }
-    .panel-body { flex: 1; overflow-y: auto; padding: 12px 14px; }
-
-    /* ── Form ───────────────────────────────────────────── */
-    .form-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px 10px;
-    }
-    .form-group { display: flex; flex-direction: column; gap: 3px; }
-    label {
-      font-size: 0.66rem;
-      font-weight: 600;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    input[type="text"],
-    input[type="number"],
-    select {
-      padding: 7px 9px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font-size: 0.83rem;
+      font-family: var(--font);
       background: var(--bg);
       color: var(--text);
-      transition: border-color 0.2s, background 0.2s;
-      outline: none;
-      width: 100%;
+      font-size: 14px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
-    input:focus, select:focus { border-color: var(--green-l); background: white; }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+    a { color: inherit; text-decoration: none; }
+    textarea { font-family: inherit; }
 
-    .btn-primary {
-      width: 100%;
-      margin-top: 10px;
-      padding: 9px;
-      background: var(--green);
-      color: white;
-      border: none;
-      border-radius: 9px;
-      font-size: 0.86rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
+    /* ─────────────────────────────────────────────────────────
+       App shell
+       ───────────────────────────────────────────────────────── */
+    .app {
+      display: grid;
+      grid-template-columns: var(--sidebar-w) 1fr;
+      min-height: 100vh;
     }
-    .btn-primary:hover  { background: var(--green-dk); }
-    .btn-primary:active { transform: scale(0.98); }
-    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 
-    /* ── Prediction result ──────────────────────────────── */
-    #result-section { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
-
-    .yield-display {
-      text-align: center;
-      padding: 12px;
-      border-radius: 10px;
-      margin-bottom: 10px;
-    }
-    .yield-display.excellent { background: #e8f5e9; border: 2px solid #4caf50; }
-    .yield-display.good      { background: #f1f8e9; border: 2px solid #8bc34a; }
-    .yield-display.average   { background: #fff8e1; border: 2px solid #ffc107; }
-    .yield-display.poor      { background: #fbe9e7; border: 2px solid #ff5722; }
-
-    .yield-num { font-size: 2.1rem; font-weight: 800; line-height: 1; }
-    .excellent .yield-num { color: #2e7d32; }
-    .good      .yield-num { color: #558b2f; }
-    .average   .yield-num { color: #f57f17; }
-    .poor      .yield-num { color: #bf360c; }
-
-    .yield-unit  { font-size: 0.82rem; color: var(--muted); margin-top: 4px; }
-    .yield-badge {
-      display: inline-block; margin-top: 8px;
-      padding: 3px 14px; border-radius: 20px;
-      font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
-    }
-    .excellent .yield-badge { background: #4caf50; color: white; }
-    .good      .yield-badge { background: #8bc34a; color: white; }
-    .average   .yield-badge { background: #ffc107; color: #333; }
-    .poor      .yield-badge { background: #ff5722; color: white; }
-
-    .metrics { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 14px; }
-    .metric { background: var(--bg); border-radius: 8px; padding: 10px; text-align: center; }
-    .metric-lbl { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
-    .metric-val { font-size: 1.3rem; font-weight: 700; margin-top: 2px; }
-
-    /* ── Chatbot panel ──────────────────────────────────── */
-    .chat-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-
-
-    /* Messages */
-    .chat-messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px 20px;
+    /* ─────────────────────────────────────────────────────────
+       Sidebar
+       ───────────────────────────────────────────────────────── */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
+      padding: 18px 14px;
       gap: 14px;
-      min-height: 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
     }
-
-    .msg { display: flex; flex-direction: column; max-width: 85%; }
-    .msg.user { align-self: flex-end; align-items: flex-end; }
-    .msg.bot  { align-self: flex-start; align-items: flex-start; }
-
-    .msg-name { font-size: 0.68rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
-
-    .msg-bubble {
-      padding: 10px 14px;
-      border-radius: 14px;
-      font-size: 0.87rem;
-      line-height: 1.5;
-      word-break: break-word;
-    }
-    .msg.user .msg-bubble {
-      background: var(--green);
-      color: white;
-      border-bottom-right-radius: 4px;
-    }
-    .msg.bot .msg-bubble {
-      background: #f0f4eb;
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-bottom-left-radius: 4px;
-    }
-
-    /* SQL block inside bot message */
-    .sql-block {
-      margin-top: 10px;
-      background: #1e1e2e;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    .sql-block-header {
-      padding: 5px 12px;
-      background: #2d2d44;
-      font-size: 0.68rem;
-      font-weight: 700;
-      color: #a0aec0;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+    .brand {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 10px;
+      padding: 6px 8px 4px;
     }
-    .sql-block pre {
-      padding: 12px;
-      font-family: "SFMono-Regular", Consolas, monospace;
-      font-size: 0.78rem;
-      color: #e2e8f0;
-      overflow-x: auto;
-      margin: 0;
+    .brand-mark {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      background: #fff;
+      display: grid; place-items: center;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      flex-shrink: 0;
+    }
+    .brand-mark img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      padding: 3px;
+    }
+    .brand-meta { line-height: 1.15; }
+    .brand-title { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
+    .brand-sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+
+    .new-chat-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      background: var(--green-500);
+      color: #fff;
+      font-weight: 600;
+      font-size: 13px;
+      transition: background 0.15s ease, transform 0.1s ease;
+      box-shadow: var(--shadow-sm);
+    }
+    .new-chat-btn:hover { background: var(--green-600); }
+    .new-chat-btn:active { transform: translateY(1px); }
+    .new-chat-btn svg { width: 16px; height: 16px; }
+
+    .nav-section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted-2);
+      padding: 4px 10px;
+      margin-top: 4px;
+    }
+    .nav { display: flex; flex-direction: column; gap: 2px; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 9px 10px;
+      border-radius: 10px;
+      color: var(--text-2);
+      transition: background 0.15s ease, color 0.15s ease;
+      text-align: left;
+    }
+    .nav-item:hover { background: var(--surface-2); }
+    .nav-item.active {
+      background: var(--green-50);
+      color: var(--green-700);
+    }
+    .nav-item.active .nav-icon { color: var(--green-600); }
+    .nav-item.active .nav-sub { color: var(--green-600); opacity: 0.85; }
+    .nav-icon {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      background: var(--surface-2);
+      color: var(--muted);
+      display: grid; place-items: center;
+      flex-shrink: 0;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .nav-item.active .nav-icon {
+      background: #fff;
+      box-shadow: var(--shadow-sm);
+    }
+    .nav-icon svg { width: 16px; height: 16px; }
+    .nav-text { line-height: 1.2; min-width: 0; }
+    .nav-label { font-size: 13.5px; font-weight: 600; }
+    .nav-sub { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+
+    .recent-chats {
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px 10px;
+      flex: 1;
+      min-height: 80px;
+    }
+    .recent-empty {
+      font-size: 12px;
+      color: var(--muted-2);
+      padding: 14px 4px;
+      text-align: left;
+    }
+
+    .sidebar-footer {
+      border-top: 1px solid var(--border-2);
+      padding: 10px 8px 4px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--green-100);
+      color: var(--green-700);
+      font-weight: 700;
+      display: grid; place-items: center;
+      font-size: 12px;
+    }
+
+    /* ─────────────────────────────────────────────────────────
+       Main area
+       ───────────────────────────────────────────────────────── */
+    .main {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 100vh;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 14px 24px;
+      gap: 10px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-2);
+      box-shadow: var(--shadow-sm);
+    }
+    .pill .dot-green {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green-500);
+      box-shadow: 0 0 0 3px rgba(45, 122, 45, 0.15);
+    }
+
+    .page { display: none; padding: 8px 28px 36px; flex: 1; }
+    .page.active { display: block; }
+    .page-inner {
+      max-width: 1180px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .page-header {
+      margin: 6px 0 18px;
+    }
+    .page-title { font-size: 24px; font-weight: 700; letter-spacing: -0.01em; }
+    .page-sub { font-size: 14px; color: var(--muted); margin-top: 4px; }
+
+    /* ─────────────────────────────────────────────────────────
+       Assistant page
+       ───────────────────────────────────────────────────────── */
+    .assistant-shell {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 88px);
+      max-width: var(--content-max);
+      margin: 0 auto;
+      width: 100%;
+      position: relative;
+    }
+
+    /* Hackathon banner — sits as a translucent watermark BEHIND the chat */
+    .hackathon-banner {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      gap: 40px;
+      padding: 20px 24px;
+      width: min(1100px, 96%);
+      pointer-events: none;
+      opacity: 0.14;
+      filter: saturate(0.85);
+      z-index: 0;
+    }
+    .hackathon-banner .logo-block {
+      flex-shrink: 0;
+      width: 240px;
+      height: 240px;
+      border-radius: 32px;
+      background: rgba(255, 255, 255, 0.6);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+    .hackathon-banner .logo-block img {
+      width: 92%;
+      height: 92%;
+      object-fit: contain;
+    }
+    .hackathon-banner .copy { flex: 1; min-width: 0; }
+    .hackathon-banner .eyebrow {
+      font-size: 18px;
+      color: #1e293b;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .hackathon-banner h2 {
+      font-size: 72px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 10px 0 14px;
+      letter-spacing: -0.025em;
+      line-height: 1.05;
+    }
+    .hackathon-banner .tagline {
+      font-size: 20px;
+      color: #1e293b;
+      margin: 0 0 22px;
+      line-height: 1.5;
+      font-weight: 500;
+    }
+    .hackathon-banner .tag-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .hackathon-banner .tag {
+      padding: 9px 20px;
+      border-radius: 999px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .tag-noaa  { background: #6366f1; }
+    .tag-yield { background: #059669; }
+    .tag-ml    { background: #0ea5e9; }
+    @media (max-width: 720px) {
+      .hackathon-banner { flex-direction: column; text-align: center; align-items: center; }
+      .hackathon-banner .tag-row { justify-content: center; }
+    }
+
+    .assistant-hero {
+      text-align: center;
+      padding: 32px 16px 18px;
+      position: relative;
+      z-index: 1;
+    }
+    .assistant-hero h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      color: var(--text);
+    }
+    .assistant-hero p {
+      color: var(--muted);
+      font-size: 14.5px;
+      margin-top: 8px;
+    }
+
+    .chat-stream {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 12px 12px;
+      scroll-behavior: smooth;
+      position: relative;
+      z-index: 1;
+    }
+    .chat-empty {
+      color: var(--muted-2);
+      font-size: 13px;
+      text-align: center;
+      padding: 32px 0;
+    }
+
+    .msg {
+      max-width: 760px;
+      margin: 14px auto;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .msg.user { flex-direction: row-reverse; }
+    .msg-avatar {
+      flex-shrink: 0;
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      display: grid; place-items: center;
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .msg.user .msg-avatar { background: #eef2ff; color: #4338ca; }
+    .msg.bot  .msg-avatar { background: var(--green-100); color: var(--green-700); }
+    .msg-body { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+    .msg.user .msg-body { align-items: flex-end; text-align: right; }
+    .msg-name { font-size: 12.5px; font-weight: 600; color: var(--text-2); margin-bottom: 2px; }
+    .msg-bubble {
+      font-size: 14.5px;
+      line-height: 1.6;
+      color: var(--text);
       white-space: pre-wrap;
       word-break: break-word;
     }
-
-    .msg-time { font-size: 0.65rem; color: var(--muted); margin-top: 3px; }
-
-    /* Typing indicator */
-    .typing-indicator .msg-bubble {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      padding: 12px 16px;
+    .msg.user .msg-bubble {
+      background: var(--green-500);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 16px 16px 4px 16px;
+      max-width: min(100%, 560px);
+      text-align: left;
+      box-shadow: var(--shadow-sm);
     }
-    .dot {
-      width: 7px; height: 7px;
-      background: var(--muted);
+    .msg-time { font-size: 11.5px; color: var(--muted-2); margin-top: 4px; }
+    .typing-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
       border-radius: 50%;
-      animation: bounce 1.2s infinite ease-in-out;
+      background: var(--muted-2);
+      margin-right: 4px;
+      animation: typing 1.2s infinite ease-in-out;
     }
-    .dot:nth-child(2) { animation-delay: 0.2s; }
-    .dot:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes bounce {
-      0%, 80%, 100% { transform: scale(0.7); opacity: 0.5; }
-      40% { transform: scale(1.1); opacity: 1; }
+    .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes typing {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-4px); opacity: 1; }
     }
 
-    /* Welcome state */
-    .chat-welcome {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      color: var(--muted);
-      text-align: center;
-      padding: 32px;
-      min-height: 100%;
-      gap: 10px;
+    .sql-block {
+      margin-top: 10px;
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 10px;
+      overflow: hidden;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12.5px;
     }
-    .chat-welcome h3 { font-size: 1rem; font-weight: 600; color: var(--text); }
-    .chat-welcome p  { font-size: 0.83rem; line-height: 1.6; max-width: 280px; }
+    .sql-block-header {
+      padding: 8px 12px;
+      background: rgba(255,255,255,0.05);
+      font-weight: 600;
+      font-size: 11.5px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #94a3b8;
+    }
+    .sql-block pre { padding: 10px 12px; overflow-x: auto; }
 
-    /* Suggestion chips */
+    .composer-wrap {
+      max-width: 760px;
+      margin: 0 auto 18px;
+      padding: 0 12px;
+      width: 100%;
+    }
     .suggestions {
       display: flex;
-      flex-wrap: wrap;
       gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
       justify-content: center;
-      margin-top: 0;
     }
     .chip {
-      padding: 6px 14px;
-      background: white;
+      padding: 7px 12px;
       border: 1px solid var(--border);
-      border-radius: 20px;
-      font-size: 0.78rem;
-      cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
-      color: var(--text);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--text-2);
+      font-size: 12.5px;
+      font-weight: 500;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
-    .chip:hover { border-color: var(--green-l); background: #f0faf0; }
-
-    /* Input bar */
-    .chat-input-bar {
-      padding: 14px 20px;
-      border-top: 1px solid var(--border);
-      background: white;
+    .chip:hover {
+      background: var(--green-50);
+      border-color: var(--green-200);
+      color: var(--green-700);
+    }
+    .composer {
       display: flex;
-      gap: 10px;
-      flex-shrink: 0;
-    }
-    .chat-input-bar textarea {
-      flex: 1;
-      padding: 10px 13px;
+      align-items: flex-end;
+      gap: 8px;
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      font-size: 0.88rem;
-      font-family: inherit;
-      resize: none;
-      outline: none;
-      line-height: 1.4;
-      max-height: 120px;
-      transition: border-color 0.2s;
-      background: var(--bg);
+      border-radius: var(--radius-lg);
+      padding: 10px 10px 10px 14px;
+      box-shadow: var(--shadow);
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
-    .chat-input-bar textarea:focus { border-color: var(--green-l); background: white; }
-    .btn-send {
-      padding: 10px 18px;
-      background: var(--green);
-      color: white;
+    .composer:focus-within {
+      border-color: var(--green-200);
+      box-shadow: 0 0 0 4px rgba(45, 122, 45, 0.08), var(--shadow);
+    }
+    .composer textarea {
+      flex: 1;
       border: none;
+      outline: none;
+      resize: none;
+      background: transparent;
+      font-size: 14.5px;
+      line-height: 1.55;
+      color: var(--text);
+      padding: 8px 0;
+      max-height: 200px;
+    }
+    .composer textarea::placeholder { color: var(--muted-2); }
+    .send-btn {
+      flex-shrink: 0;
+      width: 36px; height: 36px;
       border-radius: 10px;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: background 0.2s;
+      background: var(--green-500);
+      color: #fff;
+      display: grid; place-items: center;
+      transition: background 0.15s ease;
+    }
+    .send-btn:hover:not(:disabled) { background: var(--green-600); }
+    .send-btn:disabled { background: var(--muted-2); cursor: not-allowed; }
+    .send-btn svg { width: 16px; height: 16px; }
+
+    /* ─────────────────────────────────────────────────────────
+       Card / placeholder grids (Dashboard, Report, Model)
+       ───────────────────────────────────────────────────────── */
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+    .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    @media (max-width: 1100px) {
+      .grid.cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid.cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 720px) {
+      .grid.cols-4, .grid.cols-3, .grid.cols-2 { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      box-shadow: var(--shadow-sm);
+      transition: box-shadow 0.2s ease, transform 0.2s ease;
+    }
+    .card.tall { min-height: 240px; display: flex; flex-direction: column; }
+    .card.placeholder {
+      background: var(--surface-2);
+      border-style: dashed;
+      border-color: var(--border);
+    }
+    .card-label {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .card-title { font-size: 16px; font-weight: 600; margin-top: 4px; }
+    .card-value { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; margin-top: 8px; color: var(--text); }
+    .card-hint { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+    .card-body { color: var(--muted); font-size: 13px; margin-top: 10px; }
+    .card-empty {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      color: var(--muted-2);
+      font-size: 13px;
+      border-radius: 10px;
+      background: repeating-linear-gradient(
+        45deg,
+        var(--surface-2),
+        var(--surface-2) 12px,
+        #fff 12px,
+        #fff 24px
+      );
+      min-height: 140px;
+      margin-top: 12px;
+      border: 1px dashed var(--border);
+    }
+    .section-block { margin-top: 24px; }
+    .section-heading {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-2);
+      margin-bottom: 10px;
       display: flex;
       align-items: center;
-      gap: 6px;
-      white-space: nowrap;
-      font-weight: 600;
-      align-self: flex-end;
+      gap: 8px;
     }
-    .btn-send:hover   { background: var(--green-dk); }
-    .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    /* ── Utilities ───────────────────────────────────────── */
-    .spinner {
-      display: inline-block;
-      width: 14px; height: 14px;
-      border: 2px solid rgba(255,255,255,0.4);
-      border-top-color: white;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      vertical-align: middle;
+    .section-heading::before {
+      content: "";
+      width: 3px; height: 14px;
+      border-radius: 2px;
+      background: var(--green-500);
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .error-toast {
-      background: #fbe9e7;
-      color: #bf360c;
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: 0.84rem;
-      display: none;
-      margin-top: 12px;
-    }
-    .new-conv-btn {
-      font-size: 0.72rem;
-      color: var(--muted);
-      background: none;
-      border: none;
-      cursor: pointer;
-      text-decoration: underline;
+    .section-heading .heading-actions {
       margin-left: auto;
-      padding: 0;
+      display: flex;
+      gap: 8px;
     }
-    .new-conv-btn:hover { color: var(--green); }
+    .ghost-btn {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-2);
+      padding: 5px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      transition: background 0.15s ease, border-color 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .ghost-btn:hover { background: var(--surface-2); border-color: var(--green-200); color: var(--green-700); }
+    .ghost-btn svg { width: 13px; height: 13px; }
 
-    @media (max-width: 900px) {
-      header { padding: 16px 18px; }
-      .section-nav { width: 100%; justify-content: flex-start; margin-left: 0; margin-top: 8px; }
-      .section-link { font-size: 0.72rem; padding: 6px 10px; }
-      .header-badge { display: none; }
-      .chat-shell { min-height: 64vh; }
-      .hero-center { padding-bottom: 24px; }
-      .form-grid { grid-template-columns: 1fr 1fr; }
-      .metrics { grid-template-columns: 1fr; }
-      .chart-grid { grid-template-columns: 1fr; }
+    .skeleton {
+      background: linear-gradient(90deg, #eef0ee 0%, #f7f9f7 50%, #eef0ee 100%);
+      background-size: 200% 100%;
+      animation: skel 1.4s ease-in-out infinite;
+      border-radius: 8px;
     }
-    @media (max-width: 640px) {
-      .form-grid { grid-template-columns: 1fr; }
+    @keyframes skel { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .skel-line { height: 14px; margin: 6px 0; }
+    .skel-value { height: 28px; margin-top: 8px; width: 70%; }
+
+    .alert {
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-size: 13px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
     }
+    .alert.warn  { background: #fff8e6; border: 1px solid #fde68a; color: #92400e; }
+    .alert.error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+
+    .table-wrap { overflow-x: auto; margin-top: 12px; border-radius: 12px; border: 1px solid var(--border); }
+    table.data {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      background: var(--surface);
+    }
+    table.data th, table.data td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-2);
+      white-space: nowrap;
+    }
+    table.data thead th {
+      font-weight: 600;
+      color: var(--muted);
+      background: var(--surface-2);
+      font-size: 11.5px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    table.data tbody tr:hover { background: var(--surface-2); }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .chart-box {
+      width: 100%;
+      min-height: 280px;
+      margin-top: 4px;
+    }
+    .chart-box.tall { min-height: 360px; }
+
+    /* ── Dashboard (Streamlit-style) ── */
+    .dash-main-title {
+      font-size: 36px;
+      font-weight: 700;
+      color: #2E7D32;
+      margin-bottom: 8px;
+    }
+    .dash-subtitle {
+      font-size: 16px;
+      color: #555;
+      margin-bottom: 16px;
+    }
+    .dash-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-top: 8px;
+      margin-bottom: 14px;
+      padding: 14px 18px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow-sm);
+    }
+    .view-toggle {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      background: var(--surface-2);
+      border-radius: 999px;
+      width: fit-content;
+    }
+    .view-toggle-btn {
+      padding: 7px 16px;
+      border: none;
+      background: transparent;
+      color: var(--text-2);
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .view-toggle-btn:hover { color: var(--text-1); }
+    .view-toggle-btn.active {
+      background: var(--surface);
+      color: var(--green-700);
+      font-weight: 600;
+      box-shadow: var(--shadow-sm);
+    }
+    .dash-filters {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+
+    .kpi-streamlit {
+      text-align: center;
+      padding: 24px 20px;
+    }
+    .kpi-streamlit .kpi-value {
+      font-size: 36px;
+      font-weight: 700;
+      color: #2E7D32;
+      line-height: 1.1;
+    }
+    .kpi-streamlit .kpi-label {
+      font-size: 14px;
+      color: #666;
+      margin-top: 6px;
+    }
+
+    .warning-banner {
+      background-color: #FFF3CD;
+      border-left: 5px solid #FFC107;
+      padding: 14px 16px;
+      margin: 14px 0 6px;
+      font-size: 15px;
+      font-weight: 500;
+      color: #856404;
+      border-radius: 6px;
+    }
+
+    .chart-caption {
+      font-size: 13px;
+      color: #666;
+      font-style: italic;
+      text-align: center;
+      margin-top: 6px;
+    }
+
+    .alert.info {
+      background: #f0f7ff;
+      border: 1px solid #cfe2ff;
+      color: #1e3a8a;
+    }
+
+    .dash-view.hidden { display: none; }
+
+    .dash-footer {
+      text-align: center;
+      color: #666;
+      font-size: 12px;
+      padding: 24px 0 8px;
+      border-top: 1px solid var(--border-2);
+      margin-top: 24px;
+    }
+
+    /* ── Report (Executive Summary) ── */
+    .report-page { max-width: 1100px; margin: 0 auto; }
+    .report-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .report-actions { display: flex; gap: 8px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      transition: background 0.12s ease;
+    }
+    .btn:hover { background: var(--bg-2); }
+    .btn-secondary { background: #fff; }
+
+    .report-status {
+      padding: 28px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .report-body { display: flex; flex-direction: column; gap: 22px; }
+
+    .report-cover {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      padding: 28px;
+      background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 40%, #ecfdf5 100%);
+      border-radius: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+    .report-cover-logo {
+      width: 96px; height: 96px;
+      border-radius: 14px;
+      background: #fff;
+      display: grid; place-items: center;
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: var(--shadow-sm);
+    }
+    .report-cover-logo img { width: 92%; height: 92%; object-fit: contain; }
+    .report-cover-eyebrow {
+      font-size: 11px;
+      color: #475569;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .report-cover-meta h2 {
+      margin: 4px 0 6px;
+      font-size: 26px;
+      letter-spacing: -0.015em;
+      color: #0f172a;
+    }
+    .report-cover-sub { color: #475569; font-size: 14px; }
+    .report-cover-date {
+      margin-top: 6px;
+      color: #64748b;
+      font-size: 12px;
+    }
+
+    .report-section {
+      background: #fff;
+      border: 1px solid var(--border-2);
+      border-radius: 12px;
+      padding: 18px 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .report-section-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+    .report-section-note {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin: -6px 0 12px;
+    }
+
+    .report-kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+    }
+    .report-kpi {
+      padding: 14px 16px;
+      background: var(--bg-2);
+      border-radius: 10px;
+      border: 1px solid var(--border-2);
+    }
+    .report-kpi-label {
+      font-size: 11.5px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .report-kpi-value {
+      font-size: 22px;
+      font-weight: 700;
+      margin-top: 4px;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    .report-kpi-sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+
+    .report-insights { padding-left: 20px; margin: 0; }
+    .report-insights li {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .report-chart { width: 100%; height: 320px; }
+
+    .report-table-wrap { overflow-x: auto; }
+    .report-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .report-table thead th {
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border-2);
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: var(--bg-2);
+    }
+    .report-table th.num, .report-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .report-table tbody td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border-2);
+      color: var(--text);
+    }
+    .report-table tbody tr:hover td { background: var(--bg-2); }
+
+    .report-methodology ul { padding-left: 20px; margin: 0; }
+    .report-methodology li {
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .report-methodology code {
+      background: var(--bg-2);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .report-footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 11.5px;
+      padding-top: 6px;
+    }
+    .report-footer code { font-size: 11px; }
+
+    @media print {
+      .sidebar, .topbar, .report-actions, .nav-item { display: none !important; }
+      body { background: #fff !important; }
+      .report-page { max-width: 100% !important; }
+      .report-section { break-inside: avoid; box-shadow: none; }
+      .report-cover { break-after: avoid; }
+    }
+
+    /* ── Predictor form ── */
+    .pred-form-card { padding: 22px 24px; }
+    .pred-form { margin-top: 12px; }
+    .pred-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px 16px;
+    }
+    .pred-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+    }
+    .pred-label {
+      font-weight: 500;
+      color: var(--text-2);
+      font-size: 12px;
+      letter-spacing: 0.02em;
+    }
+    .pred-opt {
+      font-weight: 400;
+      color: var(--muted-2);
+      font-size: 11px;
+    }
+    .pred-field select,
+    .pred-field input[type="number"],
+    .pred-field input[type="text"] {
+      padding: 9px 11px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--surface);
+      color: var(--text-1);
+      font-size: 13.5px;
+      font-family: inherit;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      outline: none;
+    }
+    .pred-field select:focus,
+    .pred-field input:focus {
+      border-color: var(--green-400);
+      box-shadow: 0 0 0 3px rgba(45, 122, 45, 0.12);
+    }
+    .pred-advanced {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px dashed var(--border-2);
+    }
+    .pred-advanced > summary {
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-2);
+      padding: 6px 0;
+      list-style: none;
+    }
+    .pred-advanced > summary::-webkit-details-marker { display: none; }
+    .pred-advanced > summary::before {
+      content: "▸";
+      display: inline-block;
+      margin-right: 6px;
+      transition: transform 0.15s ease;
+      color: var(--muted-2);
+    }
+    .pred-advanced[open] > summary::before { transform: rotate(90deg); }
+    .pred-advanced[open] > summary { margin-bottom: 12px; }
+    .pred-hint-inline {
+      font-weight: 400;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .pred-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+    .primary-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 16px;
+      background: var(--green-600);
+      color: #fff;
+      border: 1px solid var(--green-700);
+      border-radius: 10px;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.05s ease;
+    }
+    .primary-btn:hover { background: var(--green-700); }
+    .primary-btn:active { transform: translateY(1px); }
+    .primary-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .primary-btn svg { width: 14px; height: 14px; }
+    .pred-mode-badge {
+      margin-left: auto;
+      font-size: 11.5px;
+      color: var(--muted);
+      padding: 4px 10px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+    }
+    .card.subtle {
+      background: var(--surface-2);
+      box-shadow: none;
+      border: 1px solid var(--border-2);
+    }
+
+    /* ─────────────────────────────────────────────────────────
+       Responsive
+       ───────────────────────────────────────────────────────── */
+    @media (max-width: 880px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar {
+        position: fixed;
+        z-index: 50;
+        transform: translateX(-100%);
+        transition: transform 0.2s ease;
+        width: 86%;
+        max-width: 320px;
+      }
+      .sidebar.open { transform: translateX(0); box-shadow: var(--shadow-lg); }
+      .topbar { justify-content: space-between; padding-left: 16px; padding-right: 16px; }
+      .menu-btn { display: inline-grid; }
+      .page { padding-left: 16px; padding-right: 16px; }
+    }
+    .menu-btn {
+      display: none;
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      place-items: center;
+      box-shadow: var(--shadow-sm);
+    }
+    .menu-btn svg { width: 18px; height: 18px; color: var(--text-2); }
+
+    /* small util */
+    .row { display: flex; align-items: center; gap: 10px; }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
-<section class="hero-section" id="chat-assistant">
-  <!-- ── Header ──────────────────────────────────────────── -->
-  <header>
-    <div class="header-logo">🌾</div>
-    <div>
-      <div class="header-title">TerraCast</div>
-      <div class="header-sub">Weather-Based Crop Yield Prediction</div>
+
+<div class="app">
+
+  <!-- ───────────────────────────── Sidebar ───────────────────────────── -->
+  <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
+    <div class="brand">
+      <div class="brand-mark"><img src="/static/logo.png" alt="TerraCast logo"></div>
+      <div class="brand-meta">
+        <div class="brand-title">TerraCast</div>
+        <div class="brand-sub">UW × Databricks Hackathon</div>
+      </div>
     </div>
-    <nav class="section-nav" aria-label="Section navigation">
-      <a class="section-link" href="#chat-assistant">Assistant</a>
-      <a class="section-link" href="#yield-predictor">Predictor</a>
-      <a class="section-link" href="#charts">Charts</a>
+
+    <button class="new-chat-btn" id="new-chat-btn" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+      New Chat
+    </button>
+
+    <div class="nav-section-label">Workspace</div>
+    <nav class="nav" aria-label="Pages">
+      <button class="nav-item active" data-route="assistant" type="button">
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </span>
+        <span class="nav-text">
+          <div class="nav-label">Assistant</div>
+          <div class="nav-sub">AI Chat</div>
+        </span>
+      </button>
+      <button class="nav-item" data-route="dashboard" type="button">
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        </span>
+        <span class="nav-text">
+          <div class="nav-label">Dashboard</div>
+          <div class="nav-sub">Overview &amp; KPIs</div>
+        </span>
+      </button>
+      <button class="nav-item" data-route="predictor" type="button">
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/><circle cx="7" cy="14" r="1.2"/><circle cx="11" cy="10" r="1.2"/><circle cx="15" cy="14" r="1.2"/><circle cx="20" cy="8" r="1.2"/></svg>
+        </span>
+        <span class="nav-text">
+          <div class="nav-label">Predictor</div>
+          <div class="nav-sub">What-if yield lookup</div>
+        </span>
+      </button>
+      <button class="nav-item" data-route="report" type="button">
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </span>
+        <span class="nav-text">
+          <div class="nav-label">Report</div>
+          <div class="nav-sub">Generate &amp; View Reports</div>
+        </span>
+      </button>
+      <button class="nav-item" data-route="model" type="button">
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </span>
+        <span class="nav-text">
+          <div class="nav-label">Model</div>
+          <div class="nav-sub">Models &amp; Settings</div>
+        </span>
+      </button>
     </nav>
-    <div class="header-badge">Powered by Databricks</div>
-  </header>
 
-  <div class="hero-center">
-    <div class="hero-stack">
-      <h1 class="hero-title">Predict your yield output.</h1>
+    <div class="nav-section-label">Recent Chats</div>
+    <div class="recent-chats" id="recent-chats">
+      <div class="recent-empty">No recent chats yet.</div>
+    </div>
 
-      <div class="panel chat-shell">
-        <div class="panel-header">
-          <h2>Genie AI</h2>
-          <button class="new-conv-btn" id="new-conv-btn" title="Start a new conversation">New conversation</button>
-        </div>
+    <div class="sidebar-footer">
+      <div class="avatar">T</div>
+      <div>
+        <div style="font-weight:600; color: var(--text-2);">TerraCast</div>
+        <div>v0.1 · UI Preview</div>
+      </div>
+    </div>
+  </aside>
 
-        <!-- Chat area -->
-        <div class="chat-panel">
-          <!-- Welcome / messages container -->
-          <div class="chat-messages" id="chat-messages">
-            <div class="chat-welcome" id="chat-welcome">
-              <div class="suggestions">
-                <button class="chip" onclick="useSuggestion(this)">Which weather features most affect corn yield?</button>
-                <button class="chip" onclick="useSuggestion(this)">Show counties with unusually high yield despite drought</button>
-                <button class="chip" onclick="useSuggestion(this)">What happened to yields in 2012?</button>
-                <button class="chip" onclick="useSuggestion(this)">Compare heat stress impact on corn vs soybeans</button>
-                <button class="chip" onclick="useSuggestion(this)">Which states had the worst yield z-scores?</button>
-              </div>
+  <!-- ───────────────────────────── Main ───────────────────────────── -->
+  <main class="main">
+    <div class="topbar">
+      <button class="menu-btn" id="menu-btn" type="button" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <span class="pill">
+        <span class="dot-green"></span>
+        Powered by Databricks
+      </span>
+    </div>
+
+    <!-- ── Assistant page ── -->
+    <section class="page active" id="page-assistant">
+      <div class="assistant-shell">
+        <div class="hackathon-banner">
+          <div class="logo-block"><img src="/static/logo.png" alt="TerraCast logo"></div>
+          <div class="copy">
+            <div class="eyebrow">UW × Databricks Hackathon</div>
+            <h2>TerraCast</h2>
+            <p class="tagline">Weather-to-yield intelligence for exploring crop patterns, spotting anomalies, and testing prediction scenarios.</p>
+            <div class="tag-row">
+              <span class="tag tag-noaa">NOAA Weather</span>
+              <span class="tag tag-yield">Yield Signals</span>
+              <span class="tag tag-ml">ML Prediction</span>
             </div>
           </div>
+        </div>
+        <div class="assistant-hero">
+          <h1>Welcome to Genie</h1>
+          <p>Ask questions, analyze data, and get AI-powered insights about your crop yields.</p>
+        </div>
 
-          <!-- Input bar -->
-          <div class="chat-input-bar">
-            <textarea id="chat-input" rows="1" placeholder="Ask Genie about your yield data…"></textarea>
-            <button class="btn-send" id="send-btn">
-              <span>Send</span>
-              <span>↑</span>
+        <div class="chat-stream" id="chat-stream"></div>
+
+        <div class="composer-wrap">
+          <div class="suggestions" id="suggestions">
+            <button class="chip" type="button">Show yield trends over time</button>
+            <button class="chip" type="button">Impact of rainfall on yield</button>
+            <button class="chip" type="button">Compare county performance</button>
+          </div>
+          <div class="composer">
+            <textarea id="chat-input" rows="1" placeholder="Ask Genie about yield, weather, or counties…"></textarea>
+            <button class="send-btn" id="send-btn" type="button" aria-label="Send message" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
             </button>
           </div>
         </div>
       </div>
+    </section>
 
-    </div>
-  </div>
-</section>
+    <!-- ── Dashboard page ── -->
+    <section class="page" id="page-dashboard">
+      <div class="page-inner">
+        <header class="page-header" style="text-align:center;">
+          <div class="dash-main-title">🌾 TERRACAST Yield Anomaly &amp; Prediction Dashboard</div>
+          <div class="dash-subtitle">Detecting historical yield anomalies and exploring 2024 prediction-only estimates using weather-driven model outputs.</div>
+        </header>
 
-<section class="predictor-section" id="yield-predictor">
-  <div class="predictor-wrap">
-    <h2 class="predictor-title">Yield Predictor</h2>
-    <p class="predictor-subtitle">Adjust weather inputs below to estimate expected output.</p>
+        <div id="dash-error" class="alert error hidden"></div>
+        <div id="dash-loading" class="alert info" style="margin-top:14px;"><span>⏳</span><span>Loading dashboard data…</span></div>
 
-    <div class="panel">
-      <div class="panel-header">
-        <span>🌤</span>
-        <h2>Yield Predictor</h2>
-      </div>
-      <div class="panel-body">
-        <form id="predict-form">
-          <div class="form-grid">
+        <!-- View toggle + filters bar -->
+        <div class="dash-controls" id="dash-controls" style="display:none;">
+          <div class="view-toggle" role="tablist" aria-label="Dashboard view">
+            <button class="view-toggle-btn active" data-view="historical" type="button" role="tab" aria-selected="true">Historical Anomaly View</button>
+            <button class="view-toggle-btn" data-view="2024" type="button" role="tab" aria-selected="false">2024 Prediction View</button>
+          </div>
+          <div class="dash-filters" id="dash-filters-historical">
+            <label class="pred-field"><span class="pred-label">Year</span><select id="filter-hist-year"></select></label>
+            <label class="pred-field"><span class="pred-label">Commodity</span><select id="filter-hist-commodity"></select></label>
+            <label class="pred-field"><span class="pred-label">State</span><select id="filter-hist-state"></select></label>
+            <label class="pred-field"><span class="pred-label">Outcome Type</span><select id="filter-hist-outcome"></select></label>
+          </div>
+          <div class="dash-filters hidden" id="dash-filters-2024">
+            <label class="pred-field"><span class="pred-label">Commodity</span><select id="filter-2024-commodity"></select></label>
+            <label class="pred-field"><span class="pred-label">State</span><select id="filter-2024-state"></select></label>
+          </div>
+        </div>
 
-            <!-- ── Group 1: Crop Information ── -->
-            <div class="form-group" style="grid-column: 1 / -1; margin-top: 4px;">
-              <label style="color: var(--green); font-size: 0.75rem;">— Crop Information</label>
+        <!-- ─────────── Historical view ─────────── -->
+        <div class="dash-view" id="dash-view-historical">
+          <!-- KPI Cards (use full data, not filtered) -->
+          <div class="section-block">
+            <div class="grid cols-4">
+              <div class="card kpi-streamlit"><div class="kpi-value" data-kpi="hist-total">—</div><div class="kpi-label">Historical Records</div></div>
+              <div class="card kpi-streamlit"><div class="kpi-value" data-kpi="hist-anomalies">—</div><div class="kpi-label">Yield Anomalies</div></div>
+              <div class="card kpi-streamlit"><div class="kpi-value" data-kpi="hist-rate">—</div><div class="kpi-label" data-kpi-hint="hist-rate">Anomaly Rate</div></div>
+              <div class="card kpi-streamlit"><div class="kpi-value" data-kpi="hist-r2">—</div><div class="kpi-label">R²</div></div>
             </div>
-            <div class="form-group">
-              <label>Crop Type</label>
-              <select name="crop_type" required>
-                <option value="">Select crop…</option>
-                <option value="Corn" selected>Corn</option>
-                <option value="Soybeans">Soybeans</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>State</label>
-              <select name="state_abbr" id="state-select" required>
-                <option value="">Select state…</option>
-                <option value="AL">Alabama</option>
-                <option value="AR">Arkansas</option>
-                <option value="CO">Colorado</option>
-                <option value="DE">Delaware</option>
-                <option value="FL">Florida</option>
-                <option value="GA">Georgia</option>
-                <option value="IA">Iowa</option>
-                <option value="IL" selected>Illinois</option>
-                <option value="IN">Indiana</option>
-                <option value="KS">Kansas</option>
-                <option value="KY">Kentucky</option>
-                <option value="LA">Louisiana</option>
-                <option value="MD">Maryland</option>
-                <option value="MI">Michigan</option>
-                <option value="MN">Minnesota</option>
-                <option value="MO">Missouri</option>
-                <option value="MS">Mississippi</option>
-                <option value="MT">Montana</option>
-                <option value="NC">North Carolina</option>
-                <option value="ND">North Dakota</option>
-                <option value="NE">Nebraska</option>
-                <option value="NJ">New Jersey</option>
-                <option value="NM">New Mexico</option>
-                <option value="NY">New York</option>
-                <option value="OH">Ohio</option>
-                <option value="OK">Oklahoma</option>
-                <option value="OR">Oregon</option>
-                <option value="PA">Pennsylvania</option>
-                <option value="SC">South Carolina</option>
-                <option value="SD">South Dakota</option>
-                <option value="TN">Tennessee</option>
-                <option value="TX">Texas</option>
-                <option value="VA">Virginia</option>
-                <option value="WA">Washington</option>
-                <option value="WI">Wisconsin</option>
-                <option value="WV">West Virginia</option>
-                <option value="WY">Wyoming</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>County <span style="font-weight:400;text-transform:none">(optional)</span></label>
-              <select name="county_key" id="county-select">
-                <option value="17-0">— all counties (state avg) —</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Year</label>
-              <input type="number" name="year" min="1990" max="2030" value="2022" required />
-            </div>
-            <div class="form-group">
-              <label>Irrigation</label>
-              <select name="is_irrigated" required>
-                <option value="0">Non-Irrigated</option>
-                <option value="1">Irrigated</option>
-              </select>
-            </div>
-
-            <!-- ── Group 2: Growing Season Temperatures ── -->
-            <div class="form-group" style="grid-column: 1 / -1; margin-top: 8px;">
-              <label style="color: var(--green); font-size: 0.75rem;">— Growing Season Temperatures (Apr–Sep)</label>
-            </div>
-            <div class="form-group">
-              <label>Avg Max Temp (°C)</label>
-              <input type="number" name="avg_temp_max_c" step="0.1" min="0" max="37" value="28.5" required />
-            </div>
-            <div class="form-group">
-              <label>Avg Min Temp (°C)</label>
-              <input type="number" name="avg_temp_min_c" step="0.1" min="-10" max="25" value="13.0" required />
-            </div>
-            <div class="form-group">
-              <label>Avg Mean Temp (°C)</label>
-              <input type="number" name="avg_temp_mean_c" step="0.1" min="-5" max="30" value="20.5" required />
-            </div>
-            <div class="form-group">
-              <label>Peak Max Temp (°C)</label>
-              <input type="number" name="peak_temp_max_c" step="0.1" min="8" max="47" value="35.5" required />
-            </div>
-            <div class="form-group">
-              <label title="Number of days during Apr–Sep where daily max temperature exceeded 35°C">Heat Stress Days <span style="font-weight:400;text-transform:none">(days &gt;35°C)</span></label>
-              <input type="number" name="heat_stress_days" step="0.1" min="0" max="90" value="3" required
-                title="Number of days during Apr–Sep where daily max temperature exceeded 35°C" />
-            </div>
-
-            <!-- ── Group 3: Precipitation ── -->
-            <div class="form-group" style="grid-column: 1 / -1; margin-top: 8px;">
-              <label style="color: var(--green); font-size: 0.75rem;">— Precipitation (Growing Season)</label>
-            </div>
-            <div class="form-group">
-              <label>Total Precip (mm)</label>
-              <input type="number" name="avg_precip_mm" step="1" min="0" max="1400" value="520" required />
-            </div>
-            <div class="form-group">
-              <label title="Standard deviation of daily precipitation (mm) during growing season">Precip Std Dev (mm)</label>
-              <input type="number" name="precip_std_mm" step="0.1" min="0" max="50" value="9.0" required
-                title="Standard deviation of daily precipitation (mm) during growing season" />
-            </div>
-            <div class="form-group">
-              <label title="Number of days with zero recorded precipitation during growing season">Dry Days</label>
-              <input type="number" name="dry_days" step="1" min="0" max="165" value="75" required
-                title="Number of days with zero recorded precipitation during growing season" />
-            </div>
-            <div class="form-group">
-              <label title="Number of days with more than 50mm precipitation during growing season">Heavy Rain Days <span style="font-weight:400;text-transform:none">(&gt;50mm)</span></label>
-              <input type="number" name="heavy_rain_days" step="0.1" min="0" max="10" value="2" required
-                title="Number of days with more than 50mm precipitation during growing season" />
-            </div>
-
-            <!-- ── Group 4: Growth & Winter ── -->
-            <div class="form-group" style="grid-column: 1 / -1; margin-top: 8px;">
-              <label style="color: var(--green); font-size: 0.75rem;">— Growth &amp; Winter</label>
-            </div>
-            <div class="form-group">
-              <label title="Growing Degree Days accumulated Apr–Sep (base 10°C, cap 30°C)">GDD <span style="font-weight:400;text-transform:none">(base 10°C)</span></label>
-              <input type="number" name="gdd" step="1" min="0" max="3700" value="2400" required
-                title="Growing Degree Days accumulated Apr–Sep (base 10°C, cap 30°C)" />
-            </div>
-            <div class="form-group">
-              <label>Frost Days</label>
-              <input type="number" name="frost_days" step="0.1" min="0" max="45" value="0" required />
-            </div>
-            <div class="form-group">
-              <label>Winter Snowfall (mm)</label>
-              <input type="number" name="winter_snowfall_mm" step="1" min="0" max="2000" value="45" />
-            </div>
-            <div class="form-group">
-              <label>Snow Days</label>
-              <input type="number" name="snow_days" step="0.1" min="0" max="120" value="8" />
-            </div>
-
           </div>
 
-          <button class="btn-primary" type="submit" id="predict-btn">Predict Yield</button>
-          <div class="error-toast" id="predict-error"></div>
-        </form>
-
-        <!-- Result -->
-        <div id="result-section">
-          <div class="yield-display" id="yield-display">
-            <div class="yield-num" id="yield-num">—</div>
-            <div class="yield-unit">bu / acre</div>
-            <div class="yield-unit" id="yield-caption" style="font-size:0.78rem; margin-top:2px; opacity:0.7;"></div>
-            <span class="yield-badge" id="yield-badge">—</span>
+          <!-- Map + Trend (filtered) -->
+          <div class="section-block">
+            <div class="grid cols-2">
+              <div class="card">
+                <div class="chart-box tall" id="dash-chart-residual-map"></div>
+                <div class="chart-caption">State-level average residuals show model performance across regions. Negative values indicate over-prediction.</div>
+              </div>
+              <div class="card">
+                <div class="chart-box tall" id="dash-chart-residual-trend"></div>
+                <div class="chart-caption">Temporal trend of average residuals helps identify systematic model drift or year-specific patterns.</div>
+              </div>
+            </div>
           </div>
-          <div class="metrics">
-            <div class="metric">
-              <div class="metric-lbl">Model R²</div>
-              <div class="metric-val" id="conf-val">—</div>
+
+          <!-- Outcome categories -->
+          <div class="section-block">
+            <div class="card">
+              <div class="chart-box" id="dash-chart-outcome-categories"></div>
+              <div class="chart-caption">Yield outcome categories classify records by model explanation success and weather alignment.</div>
+            </div>
+          </div>
+
+          <!-- Top anomalies table -->
+          <div class="section-block">
+            <div class="section-heading">Top Severe Historical Anomalies</div>
+            <div class="table-wrap">
+              <table class="data" id="dash-table-anomalies">
+                <thead>
+                  <tr>
+                    <th>county_name</th>
+                    <th>state_abbr</th>
+                    <th>year</th>
+                    <th>commodity</th>
+                    <th class="num">yield_amount</th>
+                    <th class="num">pred_yield</th>
+                    <th class="num">signed_residual</th>
+                    <th class="num">residual_zscore</th>
+                    <th>outcome_category</th>
+                  </tr>
+                </thead>
+                <tbody><tr><td colspan="9" style="text-align:center; color: var(--muted-2); padding: 18px;">—</td></tr></tbody>
+              </table>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
-</section>
 
-<section class="charts-section" id="charts">
-  <div class="charts-wrap">
-    <h2 class="charts-title">Event Charts</h2>
-    <div class="panel">
-      <div class="panel-header">
-        <h2>Event Charts</h2>
+        <!-- ─────────── 2024 view ─────────── -->
+        <div class="dash-view hidden" id="dash-view-2024">
+          <!-- Warning banner -->
+          <div class="warning-banner">
+            ⚠️ 2024 values are prediction-only estimates, not confirmed anomalies.
+            Confirmed anomaly detection requires actual observed yield data.
+          </div>
+
+          <!-- KPI Cards (full data) -->
+          <div class="section-block">
+            <div class="grid cols-4">
+              <div class="card kpi-streamlit"><div class="kpi-value" data-kpi="p24-total">—</div><div class="kpi-label">2024 Prediction Rows</div></div>
+              <div class="card kpi-streamlit"><div class="kpi-value" data-kpi="p24-corn">—</div><div class="kpi-label">Corn Avg Pred Yield (bu/ac)</div></div>
+              <div class="card kpi-streamlit"><div class="kpi-value" data-kpi="p24-soy">—</div><div class="kpi-label">Soybean Avg Pred Yield (bu/ac)</div></div>
+              <div class="card kpi-streamlit">
+                <div style="font-size:32px; line-height:1;">📅</div>
+                <div class="kpi-value" data-kpi="p24-window" style="font-size:16px; margin-top:6px; line-height:1.3;">—</div>
+                <div class="kpi-label">NOAA Window</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Prediction map + by commodity -->
+          <div class="section-block">
+            <div class="grid cols-2">
+              <div class="card">
+                <div class="chart-box tall" id="dash-chart-2024-map"></div>
+                <div class="chart-caption">2024 predicted yields by state (not confirmed anomalies — requires actual yield for validation).</div>
+              </div>
+              <div class="card">
+                <div class="chart-box tall" id="dash-chart-2024-by-group"></div>
+                <div class="chart-caption">Predicted yields with quartile ranges showing expected variability across groups.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Distribution box plot -->
+          <div class="section-block">
+            <div class="card">
+              <div class="chart-box" id="dash-chart-2024-distribution"></div>
+              <div class="chart-caption">Box plots show the distribution of predicted yields by commodity, including median and outliers.</div>
+            </div>
+          </div>
+
+          <!-- Top predictions table -->
+          <div class="section-block">
+            <div class="section-heading">Top Predicted Yield Counties (2024)</div>
+            <div class="table-wrap">
+              <table class="data" id="dash-table-top-predictions">
+                <thead>
+                  <tr>
+                    <th>county_name</th>
+                    <th>state_abbr</th>
+                    <th>commodity</th>
+                    <th class="num">pred_yield</th>
+                    <th class="num">avg_precip_mm</th>
+                    <th class="num">heat_stress_days</th>
+                    <th class="num">gdd</th>
+                  </tr>
+                </thead>
+                <tbody><tr><td colspan="7" style="text-align:center; color: var(--muted-2); padding: 18px;">—</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="dash-footer">
+          <strong>TERRACAST</strong> | Agricultural Intelligence Platform |
+          Weather-Driven Crop Yield Anomaly Detection &amp; Prediction
+        </div>
+
       </div>
-      <div class="panel-body">
-        <div class="chart-grid" id="chart-grid"></div>
-        <div class="charts-controls">
-          <button class="charts-nav-btn" id="charts-prev" type="button" aria-label="Previous chart page">&#8592;</button>
-          <button class="charts-nav-btn" id="charts-next" type="button" aria-label="Next chart page">&#8594;</button>
+    </section>
+
+    <!-- ── Predictor page ── -->
+    <section class="page" id="page-predictor">
+      <div class="page-inner">
+        <header class="page-header" style="display:flex; align-items:flex-end; gap:14px;">
+          <div>
+            <div class="page-title">Predictor</div>
+            <div class="page-sub">Lookup-based yield prediction · explore matching counties &amp; predicted yields</div>
+          </div>
+        </header>
+
+        <div id="pred-error" class="alert error hidden"></div>
+
+        <!-- Form card -->
+        <div class="card pred-form-card">
+          <div class="card-label">Inputs</div>
+          <div class="card-title">Filter the prediction database</div>
+
+          <form id="pred-form" class="pred-form" autocomplete="off">
+            <div class="pred-grid">
+              <label class="pred-field">
+                <span class="pred-label">Year</span>
+                <select id="pred-year" required></select>
+              </label>
+              <label class="pred-field">
+                <span class="pred-label">Commodity</span>
+                <select id="pred-commodity" required></select>
+              </label>
+              <label class="pred-field">
+                <span class="pred-label">State</span>
+                <select id="pred-state"></select>
+              </label>
+              <label class="pred-field">
+                <span class="pred-label">County <span class="pred-opt">(optional)</span></span>
+                <select id="pred-county"><option value="">Any county</option></select>
+              </label>
+              <label class="pred-field">
+                <span class="pred-label">Irrigation</span>
+                <select id="pred-irrigation">
+                  <option value="">Any</option>
+                  <option value="0">Non-irrigated</option>
+                  <option value="1">Irrigated</option>
+                </select>
+              </label>
+            </div>
+
+            <details class="pred-advanced">
+              <summary>Optional weather features <span class="pred-hint-inline">(displayed for context, not used for filtering in lookup mode)</span></summary>
+              <div class="pred-grid">
+                <label class="pred-field">
+                  <span class="pred-label">avg_precip_mm</span>
+                  <input type="number" step="any" id="pred-avg-precip" placeholder="e.g. 250" />
+                </label>
+                <label class="pred-field">
+                  <span class="pred-label">heat_stress_days</span>
+                  <input type="number" step="any" id="pred-heat-stress" placeholder="e.g. 4" />
+                </label>
+                <label class="pred-field">
+                  <span class="pred-label">gdd</span>
+                  <input type="number" step="any" id="pred-gdd" placeholder="e.g. 1850" />
+                </label>
+                <label class="pred-field">
+                  <span class="pred-label">drought_flag</span>
+                  <select id="pred-drought-flag"><option value="">—</option><option value="0">No</option><option value="1">Yes</option></select>
+                </label>
+                <label class="pred-field">
+                  <span class="pred-label">flood_flag</span>
+                  <select id="pred-flood-flag"><option value="">—</option><option value="0">No</option><option value="1">Yes</option></select>
+                </label>
+                <label class="pred-field">
+                  <span class="pred-label">extreme_heat_flag</span>
+                  <select id="pred-extreme-heat-flag"><option value="">—</option><option value="0">No</option><option value="1">Yes</option></select>
+                </label>
+                <label class="pred-field">
+                  <span class="pred-label">extreme_events</span>
+                  <input type="number" step="1" id="pred-extreme-events" placeholder="0–3" />
+                </label>
+              </div>
+            </details>
+
+            <div class="pred-actions">
+              <button type="submit" class="primary-btn" id="pred-submit-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Run lookup
+              </button>
+              <button type="button" class="ghost-btn" id="pred-reset-btn">Reset</button>
+              <span class="pred-mode-badge" id="pred-mode-badge">Mode: lookup-based</span>
+            </div>
+          </form>
+        </div>
+
+        <!-- Results -->
+        <div id="pred-results" class="hidden">
+          <div id="pred-banner-2024" class="alert warn hidden" style="margin-top:18px;">
+            <span>⚠️</span>
+            <span><strong>Prediction-only estimates for 2024.</strong> Observed yields aren't available yet — these are model forecasts, NOT confirmed anomalies. Confirmed anomaly detection requires actual observed yield + residuals.</span>
+          </div>
+
+          <div class="section-block">
+            <div class="section-heading">Summary <span style="margin-left:auto; font-weight:400; font-size:12px; color: var(--muted);" id="pred-summary-meta"></span></div>
+            <div class="grid cols-4">
+              <div class="card"><div class="card-label">Avg Predicted Yield</div><div class="card-value" data-pred-kpi="mean">—</div><div class="card-hint">bushels / acre</div></div>
+              <div class="card"><div class="card-label">Median</div><div class="card-value" data-pred-kpi="median">—</div><div class="card-hint" data-pred-kpi-hint="median">across matching counties</div></div>
+              <div class="card"><div class="card-label">Range</div><div class="card-value" data-pred-kpi="range" style="font-size:20px;">—</div><div class="card-hint">min – max</div></div>
+              <div class="card"><div class="card-label">Matched Records</div><div class="card-value" data-pred-kpi="count">—</div><div class="card-hint" data-pred-kpi-hint="count">distinct county-year rows</div></div>
+            </div>
+          </div>
+
+          <div class="section-block">
+            <div class="grid cols-2">
+              <div class="card">
+                <div class="card-label">By County</div>
+                <div class="card-title">Predicted yield · matched counties</div>
+                <div class="chart-box tall" id="pred-chart-by-county"></div>
+                <div class="card-hint">Bar height = average predicted yield for each county that matched the filters.</div>
+              </div>
+              <div class="card">
+                <div class="card-label">Distribution</div>
+                <div class="card-title">Predicted yield histogram &amp; box</div>
+                <div class="chart-box tall" id="pred-chart-distribution"></div>
+                <div class="card-hint">Histogram of all matching pred_yield values, with a box plot above.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-block">
+            <div class="card">
+              <div class="card-label">Weather Context</div>
+              <div class="card-title">Average weather features across matched rows</div>
+              <div class="grid cols-3" style="margin-top:10px;">
+                <div class="card subtle"><div class="card-label">avg_precip_mm</div><div class="card-value" data-pred-w="avg_precip_mm">—</div><div class="card-hint">mm of precipitation</div></div>
+                <div class="card subtle"><div class="card-label">heat_stress_days</div><div class="card-value" data-pred-w="heat_stress_days">—</div><div class="card-hint">days above heat threshold</div></div>
+                <div class="card subtle"><div class="card-label">gdd</div><div class="card-value" data-pred-w="gdd">—</div><div class="card-hint">growing-degree days</div></div>
+                <div class="card subtle"><div class="card-label">drought rate</div><div class="card-value" data-pred-w="drought_rate">—</div><div class="card-hint">share with drought_flag = 1</div></div>
+                <div class="card subtle"><div class="card-label">flood rate</div><div class="card-value" data-pred-w="flood_rate">—</div><div class="card-hint">share with flood_flag = 1</div></div>
+                <div class="card subtle"><div class="card-label">extreme heat rate</div><div class="card-value" data-pred-w="extreme_heat_rate">—</div><div class="card-hint">share with extreme_heat_flag = 1</div></div>
+              </div>
+              <div id="pred-noaa-window" class="card-hint" style="margin-top:10px;"></div>
+            </div>
+          </div>
+
+          <div class="section-block">
+            <div class="card">
+              <div class="card-label">Sample Records</div>
+              <div class="card-title">Top matching rows (up to 50)</div>
+              <div class="table-wrap">
+                <table class="data" id="pred-table-rows">
+                  <thead>
+                    <tr>
+                      <th>County</th>
+                      <th>State</th>
+                      <th>Year</th>
+                      <th>Commodity</th>
+                      <th>Irrig.</th>
+                      <th class="num">Pred Yield</th>
+                      <th class="num">Observed</th>
+                      <th class="num">Residual</th>
+                      <th class="num">z</th>
+                    </tr>
+                  </thead>
+                  <tbody><tr><td colspan="9" style="text-align:center; color: var(--muted-2); padding: 18px;">Submit the form to see results.</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="pred-empty" class="hidden">
+          <div class="alert warn" style="margin-top:18px;">
+            <span>ℹ️</span>
+            <span>No matching records found for those filters. Try broadening the year, state, or removing the county.</span>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
-</section>
+    </section>
+
+    <!-- ── Report page ── -->
+    <section class="page" id="page-report">
+      <div class="page-inner report-page">
+        <header class="page-header report-header">
+          <div>
+            <div class="page-title">Executive Summary</div>
+            <div class="page-sub">Auto-generated TerraCast yield &amp; weather report</div>
+          </div>
+          <div class="report-actions">
+            <button id="report-refresh" class="btn btn-secondary" type="button">Refresh</button>
+            <button id="report-print" class="btn btn-secondary" type="button">Print / Save PDF</button>
+          </div>
+        </header>
+
+        <div id="report-status" class="report-status">Loading report…</div>
+        <div id="report-body" class="report-body" hidden>
+          <div class="report-cover">
+            <div class="report-cover-logo"><img src="/static/logo.png" alt="TerraCast"></div>
+            <div class="report-cover-meta">
+              <div class="report-cover-eyebrow">UW × Databricks Hackathon</div>
+              <h2>TerraCast Executive Summary</h2>
+              <div class="report-cover-sub" id="report-cover-sub">Weather-to-yield intelligence, generated from Unity Catalog.</div>
+              <div class="report-cover-date" id="report-cover-date"></div>
+            </div>
+          </div>
+
+          <section class="report-section">
+            <div class="report-section-title">Headline KPIs</div>
+            <div id="report-kpis" class="report-kpis"></div>
+          </section>
+
+          <section class="report-section">
+            <div class="report-section-title">Headline Insights</div>
+            <ul id="report-insights" class="report-insights"></ul>
+          </section>
+
+          <section class="report-section">
+            <div class="report-section-title">Anomaly trend by year</div>
+            <div id="report-trend" class="report-chart"></div>
+          </section>
+
+          <section class="report-section">
+            <div class="report-section-title">Anomaly hotspots — top states</div>
+            <div id="report-states" class="report-chart"></div>
+          </section>
+
+          <section class="report-section">
+            <div class="report-section-title">Top 10 historical anomalies (largest yield deviations)</div>
+            <div class="report-table-wrap">
+              <table class="report-table" id="report-top-anomalies">
+                <thead><tr>
+                  <th>Year</th><th>State</th><th>County</th><th>Crop</th>
+                  <th class="num">Actual</th><th class="num">Predicted</th>
+                  <th class="num">Δ (bu/ac)</th><th class="num">z-score</th>
+                  <th>Outcome</th>
+                </tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="report-section">
+            <div class="report-section-title">2024 prediction-only — lowest predicted-yield counties</div>
+            <div class="report-section-note">Confirmed anomaly detection requires observed yield. These are model-implied stress regions for 2024 only.</div>
+            <div class="report-table-wrap">
+              <table class="report-table" id="report-worst-2024">
+                <thead><tr>
+                  <th>State</th><th>County</th><th>Crop</th><th>Irrigation</th>
+                  <th class="num">Pred yield</th>
+                  <th class="num">Precip (mm)</th>
+                  <th class="num">Heat-stress days</th>
+                  <th class="num">GDD</th>
+                </tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="report-section report-methodology">
+            <div class="report-section-title">Methodology &amp; data sources</div>
+            <ul>
+              <li><b>Historical:</b> RMA County Yields × NOAA daily weather (avg precip mm, heat-stress days, GDD), merged at county-year-commodity level.</li>
+              <li><b>Model:</b> LightGBM regressor predicting per-county yield from weather + categorical (state, county, commodity, irrigation). R² = <b>0.4220</b>.</li>
+              <li><b>Anomaly definition:</b> <code>anomaly_flag = 1</code> when residual z-score ≥ 2 OR a NOAA weather anomaly is present.</li>
+              <li><b>Outcome categories:</b> Normal · Extreme Weather Model Handled · Extreme Weather Yield Impact · Yield Mismatch / Unexplained.</li>
+              <li><b>2024 predictions:</b> Pure forecasts driven by NOAA window weather; no observed yields available, so they cannot be confirmed anomalies.</li>
+            </ul>
+          </section>
+
+          <div class="report-footer">
+            Generated by TerraCast · UW × Databricks Hackathon · Data: <code>workspace.default.df_final_lightgbm</code>, <code>predictions_2024_partial</code>, <code>stats_2024_pred_summary</code>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Model page ── -->
+    <section class="page" id="page-model">
+      <div class="page-inner">
+        <header class="page-header">
+          <div class="page-title">Model</div>
+          <div class="page-sub">Models &amp; Settings</div>
+        </header>
+
+        <div class="grid cols-2">
+          <div class="card">
+            <div class="card-label">Configuration</div>
+            <div class="card-title">Model Configuration</div>
+            <div class="card-body">Choose region (Midwest, Plains, South), commodity (Corn, Soybeans), and feature set.</div>
+            <div class="card-empty">Configuration panel coming soon</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Training</div>
+            <div class="card-title">Training Status</div>
+            <div class="card-body">Latest training run, dataset size, and run duration.</div>
+            <div class="card-empty">Status panel coming soon</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Evaluation</div>
+            <div class="card-title">Evaluation Metrics</div>
+            <div class="card-body">R², residual statistics, and anomaly precision.</div>
+            <div class="card-empty">Metrics view coming soon</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Settings</div>
+            <div class="card-title">App Settings</div>
+            <div class="card-body">Genie space, SQL warehouse, model artifact path.</div>
+            <div class="card-empty">Settings form coming soon</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
 
 <script>
-// ── Counties data (loaded async) ─────────────────────────
-let COUNTIES = {};
-fetch('/static/counties.json')
-  .then(r => r.json())
-  .then(d => {
-    COUNTIES = d;
-    populateCountyOptions(document.getElementById('state-select').value, '17-97');
-  })
-  .catch(() => {});
+/* ─────────────────────────────────────────────────────────────────────
+   Routing (page switching)
+   ───────────────────────────────────────────────────────────────────── */
+const ROUTES = ["assistant", "dashboard", "predictor", "report", "model"];
 
-// ── State FIPS lookup ─────────────────────────────────────
-const stateFipsMap = {
-  AL: 1,  AR: 5,  CO: 8,  DE: 10, FL: 12, GA: 13,
-  IA: 19, IL: 17, IN: 18, KS: 20, KY: 21, LA: 22,
-  MD: 24, MI: 26, MN: 27, MO: 29, MS: 28, MT: 30,
-  NC: 37, ND: 38, NE: 31, NJ: 34, NM: 35, NY: 36,
-  OH: 39, OK: 40, OR: 41, PA: 42, SC: 45, SD: 46,
-  TN: 47, TX: 48, VA: 51, WA: 53, WI: 55, WV: 54, WY: 56,
-};
-
-// ── App state ─────────────────────────────────────────────
-let conversationId = null;
-let isSending      = false;
-let chartsPage     = 0;
-const FRONTEND_HARDCODED_RESPONSES = {
-  "Which weather features most affect corn yield?":
-    "For corn, the strongest weather drivers are heat stress days, total growing-season precipitation, and extreme temperature spikes during pollination. In this dataset, excessive high-temperature days and prolonged dry periods are usually associated with the largest yield declines.",
-  "Show counties with unusually high yield despite drought":
-    "Counties that outperform during drought often combine better soil water-holding capacity, more stable in-season rainfall timing, and stronger management factors such as irrigation coverage or drought-tolerant hybrids. A practical next step is to compare top drought-year outliers in Illinois, Iowa, and Nebraska against their state baselines.",
-  "What happened to yields in 2012?":
-    "The 2012 season shows a major yield shock tied to widespread U.S. drought and extreme heat. Corn was hit hardest, with many regions seeing sharp drops from trend, while soybeans also declined but generally showed slightly better resilience where late-season moisture improved.",
-  "Compare heat stress impact on corn vs soybeans":
-    "Heat stress generally causes larger yield losses in corn than in soybeans, especially around corn pollination (tasseling/silking). Corn is most vulnerable when daytime temperatures exceed about 95F and nights stay warm, while soybean impacts are often more dependent on combined heat plus drought duration.",
-  "Which states had the worst yield z-scores?":
-    "The worst yield z-scores typically appear in states most exposed to combined heat and moisture stress in bad-weather years, including parts of the central Corn Belt and Plains. In extreme years like 2012, states such as Kansas, Missouri, and neighboring regions frequently rank among the most negative deviations from trend."
-};
-
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-const CHARTS = [
-  {
-    title: "Soybeans (Bar Plot)",
-    src: "/static/graph-assets/_Soybeans_event_barplots-5841dd10-7b31-497e-afd5-5aa602141d01.png",
-    alt: "Soybeans event bar plots comparing drought, flood, and extreme heat effects on yield.",
-  },
-  {
-    title: "Corn (Bar Plot)",
-    src: "/static/graph-assets/_Corn_event_barplots-c28a9589-5bc1-4125-84e2-99ec51c1dd68.png",
-    alt: "Corn event bar plots comparing drought, flood, and extreme heat effects on yield.",
-  },
-  {
-    title: "Corn (Bar Plot Alt)",
-    src: "/static/graph-assets/_Corn_event_barplots-acdccd12-870c-42e7-b743-d3f1059399f5.png",
-    alt: "Corn event bar plots comparing drought, flood, and extreme heat effects on yield.",
-  },
-  {
-    title: "Soybeans (Bar Plot Alt)",
-    src: "/static/graph-assets/_Soybeans_event_barplots-91a67aff-5397-4996-a50f-a479852de2c6.png",
-    alt: "Soybeans event bar plots comparing drought, flood, and extreme heat effects on yield.",
-  },
-  {
-    title: "Soybeans (Distribution)",
-    src: "/static/graph-assets/Screenshot_2026-02-28_171921-d6a31c69-3a98-464e-98fa-a00146fee27b.png",
-    alt: "Soybeans yield distribution by drought, flood, and extreme heat event flags.",
-  },
-  {
-    title: "Corn (Distribution)",
-    src: "/static/graph-assets/Screenshot_2026-02-28_171935-37142cf0-621b-4bc1-a2d7-d36a9a5cf6d9.png",
-    alt: "Corn yield distribution by drought, flood, and extreme heat event flags.",
-  },
-  {
-    title: "LightGBM (Actual vs Predicted)",
-    src: "/static/graph-assets/Screenshot_2026-02-28_173130-31ed4974-8358-4efc-9c0a-2aaf8bee5b84.png",
-    alt: "Scatter plot of LightGBM actual vs predicted yield with perfect-fit reference line.",
-  },
-  {
-    title: "Residual Z-Score Distribution",
-    src: "/static/graph-assets/Screenshot_2026-02-28_at_5.33.23_PM-e076788b-2f6a-4873-8191-9c341b28578d.png",
-    alt: "Residual z-score distribution showing normal versus anomaly threshold.",
-  },
-];
-
-// ── County dropdown population ────────────────────────────
-function populateCountyOptions(st, selectedCountyKey = null) {
-  const sel = document.getElementById('county-select');
-  const sfips = stateFipsMap[st] || 0;
-  sel.innerHTML = `<option value="${sfips}-0">— all counties (state avg) —</option>`;
-  if (!st || !sfips) return;
-  if (COUNTIES[st]) {
-    COUNTIES[st].forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = `${sfips}-${c.fips}`;
-      opt.textContent = c.name;
-      if (selectedCountyKey && opt.value === selectedCountyKey) opt.selected = true;
-      sel.appendChild(opt);
-    });
-  }
-}
-
-document.getElementById('state-select').addEventListener('change', function () {
-  const st  = this.value;
-  const sfips = stateFipsMap[st] || 0;
-  const defaultCountyKey = st === 'IL' ? '17-97' : `${sfips}-0`;
-  populateCountyOptions(st, defaultCountyKey);
-  loadFeaturesFromLakehouse();
-});
-
-// ── Lakehouse feature prefill (UC Delta via GET /features) ──
-const FEATURE_INPUT_NAMES = [
-  'avg_temp_max_c', 'avg_temp_min_c', 'avg_temp_mean_c', 'peak_temp_max_c',
-  'heat_stress_days', 'avg_precip_mm', 'precip_std_mm', 'dry_days', 'heavy_rain_days',
-  'gdd', 'frost_days', 'winter_snowfall_mm', 'snow_days',
-];
-
-let featuresLoadTimer = null;
-
-async function loadFeaturesFromLakehouse() {
-  const form = document.getElementById('predict-form');
-  if (!form || !form.crop_type?.value || !form.state_abbr?.value) return;
-
-  const countyKey = form.county_key?.value || '0-0';
-  const countyFips = parseInt(countyKey.split('-')[1], 10) || 0;
-
-  const params = new URLSearchParams({
-    state_abbr: form.state_abbr.value,
-    county_fips: String(countyFips),
-    year: form.year.value,
-    crop_type: form.crop_type.value,
-    is_irrigated: form.is_irrigated.value,
+function setRoute(name) {
+  if (!ROUTES.includes(name)) name = "assistant";
+  document.querySelectorAll(".nav-item").forEach((el) => {
+    el.classList.toggle("active", el.dataset.route === name);
   });
-
-  try {
-    const res = await fetch('/features?' + params.toString());
-    if (!res.ok) return;
-    const data = await res.json();
-    FEATURE_INPUT_NAMES.forEach((name) => {
-      const input = form.elements[name];
-      if (input && data[name] != null && !Number.isNaN(Number(data[name]))) {
-        input.value = Number(data[name]);
-      }
-    });
-  } catch (_) {
-    /* lakehouse optional when SQL warehouse not configured */
+  document.querySelectorAll(".page").forEach((el) => {
+    el.classList.toggle("active", el.id === `page-${name}`);
+  });
+  if (history.replaceState) {
+    history.replaceState(null, "", `#${name}`);
+  }
+  document.getElementById("sidebar")?.classList.remove("open");
+  if (name === "assistant") {
+    setTimeout(() => document.getElementById("chat-input")?.focus(), 80);
+  }
+  if (name === "dashboard") {
+    ensureDashboardLoaded();
+  }
+  if (name === "predictor") {
+    ensurePredictorLoaded();
+  }
+  if (name === "report") {
+    ensureReportLoaded();
   }
 }
 
-function scheduleFeaturesLoad() {
-  clearTimeout(featuresLoadTimer);
-  featuresLoadTimer = setTimeout(loadFeaturesFromLakehouse, 300);
-}
-
-document.getElementById('county-select')?.addEventListener('change', scheduleFeaturesLoad);
-document.querySelector('[name="year"]')?.addEventListener('change', scheduleFeaturesLoad);
-document.querySelector('[name="crop_type"]')?.addEventListener('change', scheduleFeaturesLoad);
-document.querySelector('[name="is_irrigated"]')?.addEventListener('change', scheduleFeaturesLoad);
-
-// ── Init ─────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  autoResizeTextarea();
-  populateCountyOptions('IL', '17-97');
-  renderChartsPage(0);
-  document.getElementById('charts-prev').addEventListener('click', () => renderChartsPage(chartsPage - 1));
-  document.getElementById('charts-next').addEventListener('click', () => renderChartsPage(chartsPage + 1));
-  document.getElementById('chat-input').focus();
-  scheduleFeaturesLoad();
+document.querySelectorAll(".nav-item").forEach((el) => {
+  el.addEventListener("click", () => setRoute(el.dataset.route));
 });
 
-function renderChartsPage(nextPage) {
-  const pageSize = 2;
-  const totalPages = Math.max(1, Math.ceil(CHARTS.length / pageSize));
-  chartsPage = Math.min(Math.max(0, nextPage), totalPages - 1);
+document.getElementById("menu-btn")?.addEventListener("click", () => {
+  document.getElementById("sidebar")?.classList.toggle("open");
+});
 
-  const start = chartsPage * pageSize;
-  const pageCharts = CHARTS.slice(start, start + pageSize);
-  const grid = document.getElementById('chart-grid');
-  grid.classList.remove('fullscreen-mode');
-  grid.innerHTML = pageCharts.map(c => `
-    <article class="chart-card">
-      <h3>${c.title}</h3>
-      <img src="${c.src}" alt="${c.alt}" />
-    </article>
-  `).join('');
+/* ─────────────────────────────────────────────────────────────────────
+   Chat (preserves existing /chat backend integration)
+   ───────────────────────────────────────────────────────────────────── */
+const chatStream = document.getElementById("chat-stream");
+const chatInput  = document.getElementById("chat-input");
+const sendBtn    = document.getElementById("send-btn");
+const newChatBtn = document.getElementById("new-chat-btn");
+const suggestionsEl = document.getElementById("suggestions");
 
-  document.getElementById('charts-prev').disabled = chartsPage === 0;
-  document.getElementById('charts-next').disabled = chartsPage === totalPages - 1;
+let conversationId = null;
+let isSending = false;
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+  ));
+}
+function formatText(s) {
+  return escHtml(s).replace(/\n/g, "<br>");
+}
+function nowStr() {
+  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-// ── New conversation ─────────────────────────────────────
-document.getElementById('new-conv-btn').addEventListener('click', () => {
-  conversationId = null;
-  const msgs = document.getElementById('chat-messages');
-  msgs.innerHTML = `
-    <div class="chat-welcome" id="chat-welcome">
-      <h3>New Conversation</h3>
-      <p>Ask Genie anything about your yield and weather data.</p>
-      <div class="suggestions">
-        <button class="chip" onclick="useSuggestion(this)">Which weather features most affect corn yield?</button>
-        <button class="chip" onclick="useSuggestion(this)">Show counties with unusually high yield despite drought</button>
-        <button class="chip" onclick="useSuggestion(this)">What happened to yields in 2012?</button>
-        <button class="chip" onclick="useSuggestion(this)">Compare heat stress impact on corn vs soybeans</button>
-        <button class="chip" onclick="useSuggestion(this)">Which states had the worst yield z-scores?</button>
-      </div>
+function appendMessage(role, text, sql) {
+  const msg = document.createElement("div");
+  msg.className = `msg ${role}`;
+  const sqlHtml = sql
+    ? `<div class="sql-block"><div class="sql-block-header">⚡ Generated SQL</div><pre>${escHtml(sql)}</pre></div>`
+    : "";
+  const initial = role === "user" ? "You" : "AI";
+  const name = role === "user" ? "You" : "Genie";
+  msg.innerHTML = `
+    <div class="msg-avatar">${initial === "You" ? "Y" : "G"}</div>
+    <div class="msg-body">
+      <div class="msg-name">${name}</div>
+      <div class="msg-bubble">${formatText(text)}${sqlHtml}</div>
+      <div class="msg-time">${nowStr()}</div>
     </div>`;
-});
-
-// ── Suggestion chips ─────────────────────────────────────
-function useSuggestion(el) {
-  const textarea = document.getElementById('chat-input');
-  textarea.value = el.textContent;
-  textarea.dispatchEvent(new Event('input'));
-  sendMessage();
+  chatStream.appendChild(msg);
+  chatStream.scrollTop = chatStream.scrollHeight;
+  return msg;
 }
 
-// ── Send message ─────────────────────────────────────────
-document.getElementById('send-btn').addEventListener('click', sendMessage);
-document.getElementById('chat-input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-});
+function appendTyping() {
+  const msg = document.createElement("div");
+  msg.className = "msg bot typing";
+  msg.innerHTML = `
+    <div class="msg-avatar">G</div>
+    <div class="msg-body">
+      <div class="msg-name">Genie</div>
+      <div class="msg-bubble"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>
+    </div>`;
+  chatStream.appendChild(msg);
+  chatStream.scrollTop = chatStream.scrollHeight;
+  return msg;
+}
 
-async function sendMessage() {
+function seedExampleConversation() {
+  appendMessage("bot",
+    "Hi, I'm Genie from Databricks. I can help you explore yield trends, weather drivers, anomaly events, and county-level performance. Pick a suggestion below or type a question to begin.");
+  appendMessage("user", "What happened to U.S. corn yields in 2012?");
+  appendMessage("bot",
+    "The 2012 season showed a major yield shock tied to widespread U.S. drought and extreme heat. Corn was hit hardest, with many regions falling sharply below trend, while soybeans declined more modestly where late-season moisture improved conditions.");
+}
+
+function resetChat() {
+  chatStream.innerHTML = "";
+  conversationId = null;
+  seedExampleConversation();
+  setRoute("assistant");
+  chatInput.value = "";
+  chatInput.style.height = "auto";
+  updateSendState();
+  chatInput.focus();
+}
+
+function updateSendState() {
+  const hasText = chatInput.value.trim().length > 0;
+  sendBtn.disabled = !hasText || isSending;
+}
+
+async function sendMessage(prefill) {
   if (isSending) return;
-  const textarea = document.getElementById('chat-input');
-  const message  = textarea.value.trim();
+  const message = (prefill ?? chatInput.value).trim();
   if (!message) return;
-  const debugRunId = `ui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-  // Clear input
-  textarea.value = '';
-  textarea.style.height = 'auto';
+  appendMessage("user", message);
+  chatInput.value = "";
+  chatInput.style.height = "auto";
   isSending = true;
-  setSendState(true);
+  updateSendState();
 
-  // Remove welcome screen
-  const welcome = document.getElementById('chat-welcome');
-  if (welcome) welcome.remove();
-
-  // Append user message
-  appendMessage('user', message);
-
-  // Show typing indicator
-  const typingId = appendTyping();
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 70000);
-  // #region agent log
-  fetch('http://127.0.0.1:7591/ingest/47de8a17-75c7-4b46-b874-cfe72d654452',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'20e96c'},body:JSON.stringify({sessionId:'20e96c',runId:debugRunId,hypothesisId:'H5',location:'static/index.html:sendMessage:start',message:'UI started chat send',data:{hasConversationId:Boolean(conversationId),messageLength:message.length,isSendingBeforeFetch:isSending},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
+  const typing = appendTyping();
 
   try {
-    if (Object.prototype.hasOwnProperty.call(FRONTEND_HARDCODED_RESPONSES, message)) {
-      await delay(5000);
-      removeTyping(typingId);
-      appendMessage('bot', FRONTEND_HARDCODED_RESPONSES[message], null);
-      return;
-    }
-
-    const res = await fetch('/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
+    const res = await fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         space_id: "",
         message,
@@ -1098,224 +1855,1049 @@ async function sendMessage() {
       }),
     });
     const data = await res.json();
-    // #region agent log
-    fetch('http://127.0.0.1:7591/ingest/47de8a17-75c7-4b46-b874-cfe72d654452',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'20e96c'},body:JSON.stringify({sessionId:'20e96c',runId:debugRunId,hypothesisId:'H5',location:'static/index.html:sendMessage:response',message:'UI received chat HTTP response',data:{ok:res.ok,status:res.status,hasConversationId:Boolean(data.conversation_id),hasError:Boolean(data.error)},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-
-    removeTyping(typingId);
+    typing.remove();
 
     if (!res.ok) {
-      appendMessage('bot', `Error ${res.status}: ${data.detail || 'Unknown error'}`, null);
+      appendMessage("bot", `Error ${res.status}: ${data.detail || "Unknown error"}`);
     } else {
       if (data.conversation_id) conversationId = data.conversation_id;
-      appendMessage('bot', data.response || 'No response.', data.sql || null);
+      appendMessage("bot", data.response || "No response.", data.sql || null);
     }
   } catch (err) {
-    removeTyping(typingId);
-    // #region agent log
-    fetch('http://127.0.0.1:7591/ingest/47de8a17-75c7-4b46-b874-cfe72d654452',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'20e96c'},body:JSON.stringify({sessionId:'20e96c',runId:debugRunId,hypothesisId:'H5',location:'static/index.html:sendMessage:catch',message:'UI chat send threw error',data:{errorName:err && err.name ? err.name : 'unknown',errorMessage:err && err.message ? err.message : 'unknown'},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-    if (err.name === 'AbortError') {
-      appendMessage('bot', 'Request timed out. Genie may be warming up. Please try again in a moment.', null);
-    } else {
-      appendMessage('bot', `Network error: ${err.message}`, null);
-    }
+    typing.remove();
+    appendMessage("bot", `Network error: ${err.message || err}`);
   } finally {
-    clearTimeout(timeoutId);
     isSending = false;
-    setSendState(false);
-    // #region agent log
-    fetch('http://127.0.0.1:7591/ingest/47de8a17-75c7-4b46-b874-cfe72d654452',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'20e96c'},body:JSON.stringify({sessionId:'20e96c',runId:debugRunId,hypothesisId:'H5',location:'static/index.html:sendMessage:finally',message:'UI chat send finalized state',data:{isSendingAfterFinally:isSending,sendButtonDisabled:document.getElementById('send-btn').disabled},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
+    updateSendState();
+    chatInput.focus();
   }
 }
 
-function setSendState(loading) {
-  const btn = document.getElementById('send-btn');
-  btn.disabled = loading;
-  btn.innerHTML = loading
-    ? `<span class="spinner"></span>`
-    : `<span>Send</span><span>↑</span>`;
-}
-
-// ── Message rendering ────────────────────────────────────
-function appendMessage(role, text, sql) {
-  const msgs = document.getElementById('chat-messages');
-  const div  = document.createElement('div');
-  div.className = `msg ${role}`;
-
-  const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-  let sqlHtml = '';
-  if (sql) {
-    sqlHtml = `
-      <div class="sql-block">
-        <div class="sql-block-header">⚡ Generated SQL</div>
-        <pre>${escHtml(sql)}</pre>
-      </div>`;
-  }
-
-  div.innerHTML = `
-    <div class="msg-name">${role === 'user' ? 'You' : 'Genie AI'}</div>
-    <div class="msg-bubble">${formatText(text)}${sqlHtml}</div>
-    <div class="msg-time">${now}</div>`;
-
-  msgs.appendChild(div);
-  msgs.scrollTop = msgs.scrollHeight;
-  return div;
-}
-
-function appendTyping() {
-  const msgs = document.getElementById('chat-messages');
-  const div  = document.createElement('div');
-  const id   = 'typing-' + Date.now();
-  div.id = id;
-  div.className = 'msg bot typing-indicator';
-  div.innerHTML = `
-    <div class="msg-name">Genie AI</div>
-    <div class="msg-bubble"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>`;
-  msgs.appendChild(div);
-  msgs.scrollTop = msgs.scrollHeight;
-  return id;
-}
-
-function removeTyping(id) {
-  const el = document.getElementById(id);
-  if (el) el.remove();
-}
-
-// ── Yield predictor ──────────────────────────────────────
-document.getElementById('predict-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const errEl = document.getElementById('predict-error');
-  errEl.style.display = 'none';
-  const btn = document.getElementById('predict-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Predicting…';
-
-  const data = Object.fromEntries(new FormData(e.target));
-
-  // Client-side range validation (bounds derived from actual dataset)
-  const validationRules = [
-    { field: 'avg_temp_max_c',   label: 'Avg Max Temp',    min: 0,   max: 37  },
-    { field: 'avg_temp_min_c',   label: 'Avg Min Temp',    min: -10, max: 25  },
-    { field: 'avg_temp_mean_c',  label: 'Avg Mean Temp',   min: -5,  max: 30  },
-    { field: 'peak_temp_max_c',  label: 'Peak Max Temp',   min: 8,   max: 47  },
-    { field: 'heat_stress_days', label: 'Heat Stress Days',min: 0,   max: 90  },
-    { field: 'avg_precip_mm',    label: 'Total Precip',    min: 0,   max: 1400},
-    { field: 'precip_std_mm',    label: 'Precip Std Dev',  min: 0,   max: 50  },
-    { field: 'dry_days',         label: 'Dry Days',        min: 0,   max: 165 },
-    { field: 'heavy_rain_days',  label: 'Heavy Rain Days', min: 0,   max: 10  },
-    { field: 'gdd',              label: 'GDD',             min: 0,   max: 3700},
-    { field: 'frost_days',       label: 'Frost Days',      min: 0,   max: 45  },
-  ];
-  const errors = [];
-  const v = {};
-  for (const rule of validationRules) {
-    v[rule.field] = parseFloat(data[rule.field]);
-    if (isNaN(v[rule.field])) { errors.push(`${rule.label} is required.`); continue; }
-    if (v[rule.field] < rule.min || v[rule.field] > rule.max)
-      errors.push(`${rule.label} must be between ${rule.min} and ${rule.max}.`);
-  }
-  // Cross-field validation
-  if (!isNaN(v.avg_temp_min_c) && !isNaN(v.avg_temp_mean_c) && v.avg_temp_min_c >= v.avg_temp_mean_c)
-    errors.push('Avg Min Temp must be less than Avg Mean Temp.');
-  if (!isNaN(v.avg_temp_mean_c) && !isNaN(v.avg_temp_max_c) && v.avg_temp_mean_c >= v.avg_temp_max_c)
-    errors.push('Avg Mean Temp must be less than Avg Max Temp.');
-  if (!isNaN(v.peak_temp_max_c) && !isNaN(v.avg_temp_max_c) && v.peak_temp_max_c < v.avg_temp_max_c)
-    errors.push('Peak Max Temp must be ≥ Avg Max Temp.');
-  if (!isNaN(v.dry_days) && !isNaN(v.heavy_rain_days) && v.dry_days + v.heavy_rain_days > 183)
-    errors.push('Dry Days + Heavy Rain Days cannot exceed 183 (growing season length).');
-
-  if (errors.length) {
-    errEl.innerHTML = errors.map(e => `• ${e}`).join('<br>');
-    errEl.style.display = 'block';
-    btn.disabled = false;
-    btn.textContent = 'Predict Yield';
-    return;
-  }
-
-  const [state_fips_str, county_fips_str] = (data.county_key || '0-0').split('-');
-  const payload = {
-    crop_type:          data.crop_type,
-    state_abbr:         data.state_abbr,
-    state_fips:         parseInt(state_fips_str),
-    county_fips:        parseInt(county_fips_str),
-    year:               parseInt(data.year),
-    is_irrigated:       parseInt(data.is_irrigated),
-    avg_temp_max_c:     parseFloat(data.avg_temp_max_c),
-    avg_temp_min_c:     parseFloat(data.avg_temp_min_c),
-    avg_temp_mean_c:    parseFloat(data.avg_temp_mean_c),
-    peak_temp_max_c:    parseFloat(data.peak_temp_max_c),
-    heat_stress_days:   parseFloat(data.heat_stress_days),
-    avg_precip_mm:      parseFloat(data.avg_precip_mm),
-    precip_std_mm:      parseFloat(data.precip_std_mm),
-    dry_days:           parseFloat(data.dry_days),
-    heavy_rain_days:    parseFloat(data.heavy_rain_days),
-    gdd:                parseFloat(data.gdd),
-    frost_days:         parseFloat(data.frost_days),
-    winter_snowfall_mm: parseFloat(data.winter_snowfall_mm || 0),
-    snow_days:          parseFloat(data.snow_days || 0),
-  };
-
-  try {
-    const res = await fetch('/predict', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || `Server error ${res.status}`);
-    }
-    const result = await res.json();
-    renderYield(result, data);
-  } catch (err) {
-    errEl.textContent = `Error: ${err.message}`;
-    errEl.style.display = 'block';
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Predict Yield';
+sendBtn.addEventListener("click", () => sendMessage());
+chatInput.addEventListener("input", () => {
+  chatInput.style.height = "auto";
+  chatInput.style.height = Math.min(chatInput.scrollHeight, 200) + "px";
+  updateSendState();
+});
+chatInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
   }
 });
 
-function renderYield(r, formData) {
-  document.getElementById('result-section').style.display = 'block';
-  const display = document.getElementById('yield-display');
+suggestionsEl.querySelectorAll(".chip").forEach((btn) => {
+  btn.addEventListener("click", () => sendMessage(btn.textContent.trim()));
+});
 
-  display.className = `yield-display ${r.yield_category}`;
-  document.getElementById('yield-num').textContent   = r.predicted_yield.toFixed(1);
-  document.getElementById('yield-badge').textContent = r.yield_category.toUpperCase();
-  document.getElementById('conf-val').textContent    = '71%';
+newChatBtn.addEventListener("click", resetChat);
 
-  // Caption: Corn · IL · 2024
-  if (formData) {
-    document.getElementById('yield-caption').textContent =
-      `${formData.crop_type} · ${formData.state_abbr} · ${formData.year}`;
+/* ─────────────────────────────────────────────────────────────────────
+   Dashboard — mirrors the Streamlit live-dashboard exactly.
+   Two views (Historical / 2024), filters affect charts only (KPIs use full data).
+   ───────────────────────────────────────────────────────────────────── */
+const GREEN = "#2E7D32";
+const GREEN_L = "#66BB6A";
+const ORANGE = "#FFA726";
+const PLOTLY_CFG = { displayModeBar: false, responsive: true };
+const PLOTLY_FONT = { family: "Inter, system-ui, sans-serif", size: 13, color: "#374151" };
+
+const dashState = {
+  loaded: false,
+  loading: false,
+  view: "historical",
+  historical: null,   // { rows, filter_options, model_r2 }
+  pred2024: null,     // { rows, summary_rows, filter_options }
+  filters: {
+    historical: { year: "All", commodity: "All", state: "All", outcome: "All" },
+    pred2024:   { commodity: "All", state: "All" },
+  },
+};
+
+function fmtInt(n) {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  return Number(n).toLocaleString();
+}
+function fmtNum(n, digits = 2) {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  return Number(n).toFixed(digits);
+}
+function fmtDateShort(s) {
+  if (!s) return "";
+  const m = String(s).slice(0, 10);
+  if (m.length !== 10) return String(s);
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const [y, mm, dd] = m.split("-");
+  const idx = parseInt(mm, 10) - 1;
+  if (idx < 0 || idx > 11) return m;
+  return `${months[idx]} ${parseInt(dd, 10)}, ${y}`;
+}
+function setKpi(name, value) {
+  document.querySelectorAll(`[data-kpi="${name}"]`).forEach((el) => { el.textContent = value; });
+}
+function setKpiHint(name, value) {
+  document.querySelectorAll(`[data-kpi-hint="${name}"]`).forEach((el) => { el.textContent = value; });
+}
+
+async function handleJson(res) {
+  if (!res.ok) {
+    let detail = `${res.status} ${res.statusText}`;
+    try { const d = await res.json(); detail = d.detail || detail; } catch (_) {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
+async function ensureDashboardLoaded() {
+  if (dashState.loaded || dashState.loading) return;
+  dashState.loading = true;
+
+  const errEl = document.getElementById("dash-error");
+  const loadEl = document.getElementById("dash-loading");
+  const ctrlEl = document.getElementById("dash-controls");
+  errEl.classList.add("hidden");
+
+  try {
+    const [hist, pred] = await Promise.all([
+      fetch("/api/dashboard/historical").then(handleJson),
+      fetch("/api/dashboard/predictions-2024").then(handleJson),
+    ]);
+    dashState.historical = hist;
+    dashState.pred2024 = pred;
+    dashState.loaded = true;
+
+    populateFilters();
+    loadEl.style.display = "none";
+    ctrlEl.style.display = "";
+    renderCurrentView();
+  } catch (err) {
+    loadEl.style.display = "none";
+    errEl.classList.remove("hidden");
+    errEl.innerHTML = `<span>⚠️</span><span><strong>Failed to load dashboard data.</strong> ${escHtml(err.message || err)}</span>`;
+    console.error(err);
+  } finally {
+    dashState.loading = false;
+  }
+}
+
+/* ── View toggle + filters ──────────────────────────────────────────── */
+
+function populateFilters() {
+  const hOpts = (dashState.historical && dashState.historical.filter_options) || {};
+  const pOpts = (dashState.pred2024 && dashState.pred2024.filter_options) || {};
+
+  fillSelect("filter-hist-year", ["All", ...((hOpts.years) || [])]);
+  fillSelect("filter-hist-commodity", ["All", ...((hOpts.commodities) || [])]);
+  fillSelect("filter-hist-state", ["All", ...((hOpts.states) || [])]);
+  fillSelect("filter-hist-outcome", ["All", ...((hOpts.outcome_categories) || [])]);
+  fillSelect("filter-2024-commodity", ["All", ...((pOpts.commodities) || [])]);
+  fillSelect("filter-2024-state", ["All", ...((pOpts.states) || [])]);
+}
+
+function fillSelect(id, values) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = values.map((v) =>
+    `<option value="${escAttr(String(v))}">${escHtml(String(v))}</option>`
+  ).join("");
+}
+
+document.querySelectorAll(".view-toggle-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".view-toggle-btn").forEach((b) => {
+      b.classList.toggle("active", b === btn);
+      b.setAttribute("aria-selected", b === btn ? "true" : "false");
+    });
+    dashState.view = btn.dataset.view;
+    document.getElementById("dash-view-historical").classList.toggle("hidden", dashState.view !== "historical");
+    document.getElementById("dash-view-2024").classList.toggle("hidden", dashState.view !== "2024");
+    document.getElementById("dash-filters-historical").classList.toggle("hidden", dashState.view !== "historical");
+    document.getElementById("dash-filters-2024").classList.toggle("hidden", dashState.view !== "2024");
+    renderCurrentView();
+  });
+});
+
+["filter-hist-year","filter-hist-commodity","filter-hist-state","filter-hist-outcome"].forEach((id) => {
+  document.getElementById(id)?.addEventListener("change", (ev) => {
+    const key = id.replace("filter-hist-", "");
+    let val = ev.target.value;
+    if (key === "year" && val !== "All") val = parseInt(val, 10);
+    dashState.filters.historical[key === "outcome" ? "outcome" : key] = val;
+    if (dashState.view === "historical") renderHistoricalView();
+  });
+});
+["filter-2024-commodity","filter-2024-state"].forEach((id) => {
+  document.getElementById(id)?.addEventListener("change", (ev) => {
+    const key = id.replace("filter-2024-", "");
+    dashState.filters.pred2024[key] = ev.target.value;
+    if (dashState.view === "2024") render2024View();
+  });
+});
+
+function renderCurrentView() {
+  if (dashState.view === "historical") renderHistoricalView();
+  else render2024View();
+}
+
+/* ── Historical view ────────────────────────────────────────────────── */
+
+function applyHistoricalFilters(rows, f) {
+  return rows.filter((r) =>
+    (f.year === "All" || r.year === f.year) &&
+    (f.commodity === "All" || r.commodity === f.commodity) &&
+    (f.state === "All" || r.state_abbr === f.state) &&
+    (f.outcome === "All" || r.outcome_category === f.outcome)
+  );
+}
+
+function renderHistoricalView() {
+  const data = dashState.historical;
+  if (!data) return;
+  const rows = data.rows;
+
+  // KPIs use the FULL dataset (matches Streamlit exactly).
+  const total = rows.length;
+  const anomalyCount = rows.reduce((s, r) => s + (r.anomaly_flag === 1 ? 1 : 0), 0);
+  const scoredCount = rows.reduce((s, r) => s + (r.residual_zscore !== null && r.residual_zscore !== undefined ? 1 : 0), 0);
+  const overallRate = total ? (anomalyCount / total) * 100 : 0;
+  const scoredRate  = scoredCount ? (anomalyCount / scoredCount) * 100 : 0;
+
+  setKpi("hist-total", fmtInt(total));
+  setKpi("hist-anomalies", fmtInt(anomalyCount));
+  setKpi("hist-rate", `${overallRate.toFixed(2)}%`);
+  setKpiHint("hist-rate", `Anomaly Rate (${scoredRate.toFixed(2)}% scored)`);
+  setKpi("hist-r2", (data.model_r2 || 0.4220).toFixed(4));
+
+  const filtered = applyHistoricalFilters(rows, dashState.filters.historical);
+  renderResidualMap(filtered);
+  renderResidualTrend(filtered);
+  renderOutcomeCategoriesChart(filtered);
+  renderTopAnomaliesTable(filtered);
+}
+
+function renderResidualMap(rows) {
+  // Aggregate by state.
+  const byState = new Map();
+  rows.forEach((r) => {
+    if (!r.state_abbr || r.signed_residual === null || r.signed_residual === undefined) return;
+    const e = byState.get(r.state_abbr) || { sum: 0, n: 0 };
+    e.sum += r.signed_residual;
+    e.n += 1;
+    byState.set(r.state_abbr, e);
+  });
+  const states = [];
+  const vals = [];
+  byState.forEach((v, k) => {
+    states.push(k);
+    vals.push(v.n ? v.sum / v.n : 0);
+  });
+
+  const trace = {
+    type: "choropleth",
+    locations: states,
+    locationmode: "USA-states",
+    z: vals,
+    colorscale: "RdYlGn",
+    reversescale: true,
+    marker: { line: { color: "white", width: 1 } },
+    colorbar: { title: { text: "Avg Residual<br>(bu/ac)", side: "right" } },
+    hovertemplate: "%{location}: %{z:.3f}<extra></extra>",
+  };
+  Plotly.newPlot("dash-chart-residual-map", [trace], {
+    title: { text: "State-Level Average Residual Map", x: 0.5, xanchor: "center" },
+    geo: { scope: "usa", showlakes: false, bgcolor: "rgba(0,0,0,0)" },
+    margin: { l: 0, r: 0, t: 50, b: 0 },
+    height: 500,
+    font: PLOTLY_FONT,
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+  }, PLOTLY_CFG);
+}
+
+function renderResidualTrend(rows) {
+  const byYear = new Map();
+  rows.forEach((r) => {
+    if (r.year === null || r.signed_residual === null || r.signed_residual === undefined) return;
+    const e = byYear.get(r.year) || { sum: 0, n: 0 };
+    e.sum += r.signed_residual;
+    e.n += 1;
+    byYear.set(r.year, e);
+  });
+  const years = [...byYear.keys()].sort((a, b) => a - b);
+  const avgRes = years.map((y) => {
+    const e = byYear.get(y);
+    return e.n ? e.sum / e.n : 0;
+  });
+
+  const trace = {
+    x: years, y: avgRes,
+    type: "scatter",
+    mode: "lines+markers",
+    name: "Avg Signed Residual",
+    line: { color: GREEN, width: 3 },
+    marker: { size: 8 },
+    hovertemplate: "Year %{x}<br>Avg residual: %{y:.3f}<extra></extra>",
+  };
+  Plotly.newPlot("dash-chart-residual-trend", [trace], {
+    title: { text: "Average Residual Trend Over Time", x: 0.5, xanchor: "center" },
+    xaxis: { title: { text: "Year" }, tickmode: "linear", dtick: 1, gridcolor: "#eef0ee" },
+    yaxis: { title: { text: "Average Signed Residual (bu/ac)" }, zeroline: true, zerolinecolor: "#9ca3af", gridcolor: "#eef0ee" },
+    shapes: [{ type: "line", x0: years[0], x1: years[years.length - 1], y0: 0, y1: 0, line: { dash: "dash", color: "gray", width: 1 } }],
+    margin: { l: 60, r: 30, t: 50, b: 50 },
+    height: 500,
+    font: PLOTLY_FONT,
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+    hovermode: "x unified",
+  }, PLOTLY_CFG);
+}
+
+function renderOutcomeCategoriesChart(rows) {
+  const order = ["Normal", "Extreme Weather Model Handled",
+                 "Yield Mismatch / Unexplained", "Extreme Weather Yield Impact"];
+  const colors = ["#4CAF50", "#2196F3", "#FF9800", "#F44336"];
+  const counts = order.map((c) => rows.filter((r) => r.outcome_category === c).length);
+  const total = rows.length || 1;
+  const text = counts.map((c) => `${c.toLocaleString()}<br>(${(100 * c / total).toFixed(1)}%)`);
+
+  const trace = {
+    x: order, y: counts,
+    type: "bar",
+    text, textposition: "auto",
+    marker: { color: colors },
+    hovertemplate: "%{x}<br>%{y:,}<extra></extra>",
+  };
+  Plotly.newPlot("dash-chart-outcome-categories", [trace], {
+    title: { text: "Yield Outcome Categories", x: 0.5, xanchor: "center" },
+    xaxis: { title: { text: "Outcome Category" } },
+    yaxis: { title: { text: "Count" }, gridcolor: "#eef0ee" },
+    margin: { l: 60, r: 30, t: 50, b: 50 },
+    height: 400,
+    font: PLOTLY_FONT,
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+    showlegend: false,
+  }, PLOTLY_CFG);
+}
+
+function renderTopAnomaliesTable(rows) {
+  const anomalies = rows.filter((r) => r.anomaly_flag === 1);
+  anomalies.sort((a, b) => Math.abs(b.residual_zscore || 0) - Math.abs(a.residual_zscore || 0));
+  const top = anomalies.slice(0, 10);
+
+  const tbody = document.querySelector("#dash-table-anomalies tbody");
+  if (!tbody) return;
+  if (!top.length) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color: var(--muted-2); padding: 18px;">No anomalies found for the selected filters.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = top.map((r) => `
+    <tr>
+      <td>${escHtml(r.county_name || "")}</td>
+      <td>${escHtml(r.state_abbr || "")}</td>
+      <td class="num">${fmtInt(r.year)}</td>
+      <td>${escHtml(r.commodity || "")}</td>
+      <td class="num">${fmtNum(r.yield_amount, 2)}</td>
+      <td class="num">${fmtNum(r.pred_yield, 2)}</td>
+      <td class="num">${fmtNum(r.signed_residual, 2)}</td>
+      <td class="num"><strong>${fmtNum(r.residual_zscore, 2)}</strong></td>
+      <td>${escHtml(r.outcome_category || "")}</td>
+    </tr>
+  `).join("");
+}
+
+/* ── 2024 Prediction view ───────────────────────────────────────────── */
+
+function apply2024Filters(rows, f) {
+  return rows.filter((r) =>
+    (f.commodity === "All" || r.commodity === f.commodity) &&
+    (f.state === "All" || r.state_abbr === f.state)
+  );
+}
+
+function render2024View() {
+  const data = dashState.pred2024;
+  if (!data) return;
+  const rows = data.rows;
+
+  // KPIs use FULL dataset (matches Streamlit exactly).
+  const total = rows.length;
+  const cornRows = rows.filter((r) => /^corn$/i.test(r.commodity));
+  const soyRows  = rows.filter((r) => /^soy/i.test(r.commodity));
+  const cornAvg = mean(cornRows.map((r) => r.pred_yield));
+  const soyAvg  = mean(soyRows.map((r) => r.pred_yield));
+
+  // NOAA window from any row (they all share the same window).
+  let windowText = "—";
+  const sample = rows.find((r) => r.noaa_window_start && r.noaa_window_end);
+  if (sample) {
+    windowText = `${fmtDateShort(sample.noaa_window_start)} – ${fmtDateShort(sample.noaa_window_end)}`;
   }
 
+  setKpi("p24-total", fmtInt(total));
+  setKpi("p24-corn", fmtNum(cornAvg, 2));
+  setKpi("p24-soy", fmtNum(soyAvg, 2));
+  setKpi("p24-window", windowText);
+
+  const filtered = apply2024Filters(rows, dashState.filters.pred2024);
+  render2024PredictionMap(filtered);
+  render2024YieldByGroup(data.summary_rows || []);
+  render2024YieldDistribution(filtered);
+  render2024TopPredictionsTable(filtered);
 }
 
-// ── Helpers ──────────────────────────────────────────────
-function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function mean(arr) {
+  const valid = arr.filter((v) => v !== null && v !== undefined && !Number.isNaN(v));
+  if (!valid.length) return null;
+  return valid.reduce((a, b) => a + b, 0) / valid.length;
 }
 
-function formatText(text) {
-  // Preserve newlines, escape HTML, make **bold** and *italic* work
-  return escHtml(text)
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/\n/g, '<br>');
-}
-
-function autoResizeTextarea() {
-  const ta = document.getElementById('chat-input');
-  ta.addEventListener('input', () => {
-    ta.style.height = 'auto';
-    ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+function render2024PredictionMap(rows) {
+  const byState = new Map();
+  rows.forEach((r) => {
+    if (!r.state_abbr || r.pred_yield === null) return;
+    const e = byState.get(r.state_abbr) || { sum: 0, n: 0 };
+    e.sum += r.pred_yield;
+    e.n += 1;
+    byState.set(r.state_abbr, e);
   });
+  const states = [];
+  const vals = [];
+  byState.forEach((v, k) => {
+    states.push(k);
+    vals.push(v.n ? v.sum / v.n : 0);
+  });
+
+  const trace = {
+    type: "choropleth",
+    locations: states,
+    locationmode: "USA-states",
+    z: vals,
+    colorscale: "Greens",
+    marker: { line: { color: "white", width: 1 } },
+    colorbar: { title: { text: "Pred Yield<br>(bu/ac)", side: "right" } },
+    hovertemplate: "%{location}: %{z:.2f}<extra></extra>",
+  };
+  Plotly.newPlot("dash-chart-2024-map", [trace], {
+    title: { text: "2024 Predicted Yield by State", x: 0.5, xanchor: "center" },
+    geo: { scope: "usa", showlakes: false, bgcolor: "rgba(0,0,0,0)" },
+    margin: { l: 0, r: 0, t: 50, b: 0 },
+    height: 500,
+    font: PLOTLY_FONT,
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+  }, PLOTLY_CFG);
 }
+
+function render2024YieldByGroup(summary) {
+  // Mirrors Streamlit: prefer commodity-level summaries; fallback to state.
+  // In this data, commodity-level rows have commodity=NULL but the label lives
+  // in group_key (e.g. "Corn", "Soybeans"). Use that as the x-axis label.
+  let plot = summary.filter((r) => r.group_type === "commodity");
+  let title = "2024 Predicted Yield by Commodity";
+  let xs;
+  if (!plot.length) {
+    plot = summary.filter((r) => r.group_type === "state" || (r.group_type === "commodity_x_state" && r.state_abbr));
+    title = "2024 Predicted Yield by State";
+  }
+  if (!plot.length) {
+    Plotly.purge("dash-chart-2024-by-group");
+    document.getElementById("dash-chart-2024-by-group").innerHTML =
+      `<div style="text-align:center; padding:50px; color: var(--muted);">No summary data available for visualization.</div>`;
+    return;
+  }
+  plot = [...plot].sort((a, b) => (b.pred_mean || 0) - (a.pred_mean || 0)).slice(0, 15);
+  xs = plot.map((r) => r.commodity || r.state_abbr || r.group_key);
+  const ys = plot.map((r) => r.pred_mean);
+  const errPlus  = plot.map((r) => (r.pred_p75 || 0) - (r.pred_mean || 0));
+  const errMinus = plot.map((r) => (r.pred_mean || 0) - (r.pred_p25 || 0));
+  const text = ys.map((v) => v == null ? "" : v.toFixed(1));
+
+  const trace = {
+    x: xs, y: ys,
+    type: "bar",
+    text, textposition: "outside",
+    marker: { color: GREEN_L },
+    error_y: {
+      type: "data",
+      symmetric: false,
+      array: errPlus,
+      arrayminus: errMinus,
+      color: "#666",
+      thickness: 1.5,
+    },
+    hovertemplate: "%{x}<br>Pred mean: %{y:.2f}<extra></extra>",
+  };
+  Plotly.newPlot("dash-chart-2024-by-group", [trace], {
+    title: { text: title, x: 0.5, xanchor: "center" },
+    xaxis: { title: { text: title.endsWith("Commodity") ? "Commodity" : "State" } },
+    yaxis: { title: { text: "Predicted Yield (bu/ac)" }, gridcolor: "#eef0ee" },
+    margin: { l: 60, r: 30, t: 50, b: 60 },
+    height: 500,
+    font: PLOTLY_FONT,
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+  }, PLOTLY_CFG);
+}
+
+function render2024YieldDistribution(rows) {
+  const commodities = [...new Set(rows.map((r) => r.commodity).filter(Boolean))];
+  const colors = [GREEN_L, ORANGE];
+  const traces = commodities.map((c, i) => ({
+    type: "box",
+    y: rows.filter((r) => r.commodity === c && r.pred_yield != null).map((r) => r.pred_yield),
+    name: c,
+    marker: { color: colors[i % colors.length] },
+    boxmean: "sd",
+  }));
+  if (!traces.length) {
+    Plotly.purge("dash-chart-2024-distribution");
+    return;
+  }
+  Plotly.newPlot("dash-chart-2024-distribution", traces, {
+    title: { text: "2024 Predicted Yield Distribution by Commodity", x: 0.5, xanchor: "center" },
+    yaxis: { title: { text: "Predicted Yield (bu/ac)" }, gridcolor: "#eef0ee" },
+    margin: { l: 60, r: 30, t: 50, b: 50 },
+    height: 400,
+    font: PLOTLY_FONT,
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+    showlegend: true,
+  }, PLOTLY_CFG);
+}
+
+function render2024TopPredictionsTable(rows) {
+  const sorted = [...rows].filter((r) => r.pred_yield != null).sort((a, b) => b.pred_yield - a.pred_yield).slice(0, 10);
+  const tbody = document.querySelector("#dash-table-top-predictions tbody");
+  if (!tbody) return;
+  if (!sorted.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color: var(--muted-2); padding: 18px;">No prediction records found.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = sorted.map((r) => `
+    <tr>
+      <td>${escHtml(r.county_name || "")}</td>
+      <td>${escHtml(r.state_abbr || "")}</td>
+      <td>${escHtml(r.commodity || "")}</td>
+      <td class="num"><strong>${fmtNum(r.pred_yield, 2)}</strong></td>
+      <td class="num">${fmtNum(r.avg_precip_mm, 2)}</td>
+      <td class="num">${fmtNum(r.heat_stress_days, 1)}</td>
+      <td class="num">${fmtNum(r.gdd, 1)}</td>
+    </tr>
+  `).join("");
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Predictor — lookup-based prediction UI
+   ───────────────────────────────────────────────────────────────────── */
+let predictorOptionsLoaded = false;
+let predictorOptionsLoading = false;
+let predictorOpts = null;
+
+async function ensurePredictorLoaded() {
+  if (predictorOptionsLoaded || predictorOptionsLoading) return;
+  predictorOptionsLoading = true;
+  try {
+    const res = await fetch("/api/predictor/options");
+    predictorOpts = await handleJson(res);
+    populatePredictorForm(predictorOpts);
+    predictorOptionsLoaded = true;
+  } catch (err) {
+    showPredError(`Failed to load predictor options: ${err.message || err}`);
+    console.error(err);
+  } finally {
+    predictorOptionsLoading = false;
+  }
+}
+
+function populatePredictorForm(opts) {
+  const yearSel = document.getElementById("pred-year");
+  const commSel = document.getElementById("pred-commodity");
+  const stateSel = document.getElementById("pred-state");
+
+  yearSel.innerHTML = (opts.years || []).map((y) =>
+    `<option value="${y}">${y}${y >= (opts.prediction_only_year || 2024) ? " (prediction-only)" : ""}</option>`
+  ).join("");
+  if (yearSel.options.length) yearSel.value = String(opts.years[opts.years.length - 1] || "");
+
+  commSel.innerHTML = (opts.commodities || []).map((c) =>
+    `<option value="${escAttr(c)}">${escHtml(c)}</option>`
+  ).join("");
+
+  stateSel.innerHTML = `<option value="">All states</option>` + (opts.states || []).map((s) =>
+    `<option value="${escAttr(s)}">${escHtml(s)}</option>`
+  ).join("");
+
+  const countySel = document.getElementById("pred-county");
+  stateSel.addEventListener("change", () => {
+    const state = stateSel.value;
+    if (!state) {
+      countySel.innerHTML = `<option value="">All counties</option>`;
+      countySel.disabled = true;
+    } else {
+      countySel.disabled = false;
+      const counties = (opts.counties_by_state || {})[state] || [];
+      countySel.innerHTML = `<option value="">Any county</option>` +
+        counties.map((c) => `<option value="${escAttr(c)}">${escHtml(c)}</option>`).join("");
+    }
+  });
+  // Initial state ("All states" → disable county).
+  countySel.innerHTML = `<option value="">All counties</option>`;
+  countySel.disabled = true;
+}
+
+function showPredError(msg) {
+  const errEl = document.getElementById("pred-error");
+  errEl.classList.remove("hidden");
+  errEl.innerHTML = `<span>⚠️</span><span>${escHtml(msg)}</span>`;
+}
+
+function setPredKpi(name, value) {
+  document.querySelectorAll(`[data-pred-kpi="${name}"]`).forEach((el) => { el.textContent = value; });
+}
+function setPredKpiHint(name, value) {
+  document.querySelectorAll(`[data-pred-kpi-hint="${name}"]`).forEach((el) => { el.textContent = value; });
+}
+function setPredWeather(name, value) {
+  document.querySelectorAll(`[data-pred-w="${name}"]`).forEach((el) => { el.textContent = value; });
+}
+
+document.getElementById("pred-form")?.addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  await runPredictorLookup();
+});
+
+document.getElementById("pred-reset-btn")?.addEventListener("click", () => {
+  document.getElementById("pred-form")?.reset();
+  document.getElementById("pred-results")?.classList.add("hidden");
+  document.getElementById("pred-empty")?.classList.add("hidden");
+  document.getElementById("pred-error")?.classList.add("hidden");
+  document.getElementById("pred-state")?.dispatchEvent(new Event("change"));
+});
+
+function readNumOrNull(id) {
+  const el = document.getElementById(id);
+  if (!el) return null;
+  const v = el.value;
+  if (v === "" || v === null || v === undefined) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+function readIntOrNull(id) {
+  const el = document.getElementById(id);
+  if (!el || el.value === "") return null;
+  const n = parseInt(el.value, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+async function runPredictorLookup() {
+  document.getElementById("pred-error")?.classList.add("hidden");
+  document.getElementById("pred-empty")?.classList.add("hidden");
+
+  const submitBtn = document.getElementById("pred-submit-btn");
+  const yearSel = document.getElementById("pred-year");
+  const commSel = document.getElementById("pred-commodity");
+  const stateSel = document.getElementById("pred-state");
+  const countySel = document.getElementById("pred-county");
+  const irrigationSel = document.getElementById("pred-irrigation");
+
+  const payload = {
+    year: parseInt(yearSel.value, 10),
+    commodity: commSel.value,
+    state: stateSel.value || null,
+    county: countySel.value || null,
+    irrigation: irrigationSel.value === "" ? null : parseInt(irrigationSel.value, 10),
+    avg_precip_mm: readNumOrNull("pred-avg-precip"),
+    heat_stress_days: readNumOrNull("pred-heat-stress"),
+    gdd: readNumOrNull("pred-gdd"),
+    drought_flag: readIntOrNull("pred-drought-flag"),
+    flood_flag: readIntOrNull("pred-flood-flag"),
+    extreme_heat_flag: readIntOrNull("pred-extreme-heat-flag"),
+    extreme_events: readIntOrNull("pred-extreme-events"),
+  };
+
+  submitBtn.disabled = true;
+  const originalLabel = submitBtn.innerHTML;
+  submitBtn.innerHTML = "Running…";
+
+  try {
+    const res = await fetch("/api/predictor/lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await handleJson(res);
+    renderPredictorResult(data);
+  } catch (err) {
+    showPredError(err.message || String(err));
+    console.error(err);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = originalLabel;
+  }
+}
+
+function renderPredictorResult(data) {
+  const resultsEl = document.getElementById("pred-results");
+  const emptyEl = document.getElementById("pred-empty");
+  const banner = document.getElementById("pred-banner-2024");
+
+  if (data.is_prediction_only) banner.classList.remove("hidden");
+  else banner.classList.add("hidden");
+
+  if (!data.stats || !data.stats.count) {
+    resultsEl.classList.add("hidden");
+    emptyEl.classList.remove("hidden");
+    return;
+  }
+  emptyEl.classList.add("hidden");
+  resultsEl.classList.remove("hidden");
+
+  const f = data.filters || {};
+  const irrigText = f.irrigation === 1 ? "irrigated" : f.irrigation === 0 ? "non-irrigated" : "any irrigation";
+  const stateText = f.state ? escHtml(f.state) : "All states";
+  const meta = `Source: ${escHtml(data.source_table)} · ${escHtml(f.commodity)} · ${stateText}${f.county ? " · " + escHtml(f.county) : ""} · ${escHtml(String(f.year))} · ${irrigText}`;
+  document.getElementById("pred-summary-meta").innerHTML = meta;
+
+  const s = data.stats;
+  setPredKpi("mean", `${fmtNum(s.mean, 2)}`);
+  setPredKpi("median", `${fmtNum(s.median, 2)}`);
+  setPredKpi("range", `${fmtNum(s.min, 1)} – ${fmtNum(s.max, 1)}`);
+  setPredKpi("count", fmtInt(s.count));
+  setPredKpiHint("median", `IQR ${fmtNum(s.p25, 1)} – ${fmtNum(s.p75, 1)}`);
+  setPredKpiHint("count", `std ${fmtNum(s.std, 2)}`);
+
+  const w = data.weather_summary || {};
+  setPredWeather("avg_precip_mm", w.avg_precip_mm == null ? "—" : `${fmtNum(w.avg_precip_mm, 1)} mm`);
+  setPredWeather("heat_stress_days", w.heat_stress_days == null ? "—" : fmtNum(w.heat_stress_days, 1));
+  setPredWeather("gdd", w.gdd == null ? "—" : fmtNum(w.gdd, 0));
+  setPredWeather("drought_rate", w.drought_rate == null ? "—" : `${fmtNum(100 * w.drought_rate, 1)}%`);
+  setPredWeather("flood_rate", w.flood_rate == null ? "—" : `${fmtNum(100 * w.flood_rate, 1)}%`);
+  setPredWeather("extreme_heat_rate", w.extreme_heat_rate == null ? "—" : `${fmtNum(100 * w.extreme_heat_rate, 1)}%`);
+
+  const noaa = data.noaa_window;
+  document.getElementById("pred-noaa-window").innerHTML = noaa
+    ? `<strong>NOAA weather window:</strong> ${escHtml(String(noaa.start).slice(0,10))} → ${escHtml(String(noaa.end).slice(0,10))}`
+    : "";
+
+  renderPredictorCountyChart(data.by_county || []);
+  renderPredictorDistributionChart(data.distribution || []);
+  renderPredictorTable(data.sample_rows || []);
+}
+
+function renderPredictorCountyChart(rows) {
+  if (!rows.length) {
+    Plotly.purge("pred-chart-by-county");
+    return;
+  }
+  const top = rows.slice(0, 30);
+  const multiState = new Set(top.map((r) => r.state).filter(Boolean)).size > 1;
+  const counties = top.map((r) => multiState && r.state ? `${r.county} (${r.state})` : r.county);
+  const vals = top.map((r) => r.avg_pred_yield);
+  const trace = {
+    x: vals, y: counties,
+    type: "bar",
+    orientation: "h",
+    marker: { color: GREEN },
+    hovertemplate: "%{y}<br>Avg pred: %{x:.2f} bu/ac<extra></extra>",
+  };
+  Plotly.newPlot("pred-chart-by-county", [trace], {
+    margin: { l: 100, r: 16, t: 8, b: 40 },
+    xaxis: { title: { text: "Predicted yield (bu/ac)", standoff: 10 }, gridcolor: "#eef0ee" },
+    yaxis: { automargin: true, autorange: "reversed" },
+    font: PLOTLY_FONT,
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+    height: Math.max(300, 18 * counties.length + 60),
+    bargap: 0.2,
+  }, PLOTLY_CFG);
+}
+
+function renderPredictorDistributionChart(values) {
+  if (!values.length) {
+    Plotly.purge("pred-chart-distribution");
+    return;
+  }
+  const traces = [
+    {
+      type: "box",
+      x: values,
+      name: "",
+      orientation: "h",
+      marker: { color: GREEN },
+      boxmean: true,
+      yaxis: "y2",
+      hovertemplate: "%{x:.2f}<extra></extra>",
+    },
+    {
+      type: "histogram",
+      x: values,
+      name: "Pred yield",
+      marker: { color: GREEN_L, line: { color: GREEN, width: 1 } },
+      nbinsx: Math.min(30, Math.max(8, Math.round(Math.sqrt(values.length)))),
+      hovertemplate: "%{x:.1f}: %{y}<extra></extra>",
+    },
+  ];
+  Plotly.newPlot("pred-chart-distribution", traces, {
+    margin: { l: 50, r: 16, t: 8, b: 40 },
+    xaxis: { title: { text: "Predicted yield (bu/ac)", standoff: 10 }, gridcolor: "#eef0ee" },
+    yaxis: { domain: [0, 0.78], gridcolor: "#eef0ee" },
+    yaxis2: { domain: [0.82, 1.0], showticklabels: false, zeroline: false },
+    showlegend: false,
+    font: PLOTLY_FONT,
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+    height: 360,
+    bargap: 0.05,
+  }, PLOTLY_CFG);
+}
+
+function renderPredictorTable(rows) {
+  const tbody = document.querySelector("#pred-table-rows tbody");
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color: var(--muted-2); padding: 18px;">No matching rows.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map((r) => {
+    const irrig = r.irrigation === 1 ? "Yes" : r.irrigation === 0 ? "No" : "—";
+    const observed = r.yield_amount == null ? "—" : fmtNum(r.yield_amount, 1);
+    const residual = r.signed_residual == null ? "—" : fmtNum(r.signed_residual, 2);
+    const z = r.residual_zscore == null ? "—" : fmtNum(r.residual_zscore, 2);
+    const residualColor = r.signed_residual == null ? "" :
+      `style="color:${r.signed_residual < 0 ? '#dc2626' : '#15803d'};"`;
+    return `
+      <tr>
+        <td>${escHtml(r.county || "—")}</td>
+        <td>${escHtml(r.state || "")}</td>
+        <td class="num">${fmtInt(r.year)}</td>
+        <td>${escHtml(r.commodity || "")}</td>
+        <td>${irrig}</td>
+        <td class="num"><strong>${fmtNum(r.pred_yield, 2)}</strong></td>
+        <td class="num">${observed}</td>
+        <td class="num" ${residualColor}>${residual}</td>
+        <td class="num">${z}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function escAttr(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Report (Executive Summary)
+   ───────────────────────────────────────────────────────────────────── */
+let reportLoaded = false;
+let reportLoading = false;
+let reportData = null;
+
+async function ensureReportLoaded(force = false) {
+  if (reportLoading) return;
+  if (reportLoaded && !force) return;
+  reportLoading = true;
+  const status = document.getElementById("report-status");
+  const body = document.getElementById("report-body");
+  if (status) {
+    status.style.display = "";
+    status.textContent = "Generating report from Unity Catalog…";
+  }
+  if (body) body.hidden = true;
+  try {
+    const res = await fetch("/api/report/summary");
+    reportData = await handleJson(res);
+    renderReport(reportData);
+    reportLoaded = true;
+    if (status) status.style.display = "none";
+    if (body) body.hidden = false;
+  } catch (err) {
+    if (status) {
+      status.style.display = "";
+      status.textContent = `Failed to build report: ${err.message || err}`;
+    }
+  } finally {
+    reportLoading = false;
+  }
+}
+
+function renderReport(data) {
+  const hero = data.hero || {};
+  const sub = document.getElementById("report-cover-sub");
+  if (sub) {
+    const yr = (hero.year_min && hero.year_max)
+      ? `${hero.year_min}–${hero.year_max}`
+      : "";
+    sub.textContent = `Weather-to-yield intelligence over ${yr} · ${hero.n_states || 0} states · ${hero.n_commodities || 0} commodities.`;
+  }
+  const dateEl = document.getElementById("report-cover-date");
+  if (dateEl) dateEl.textContent = `Generated ${new Date().toLocaleString()}`;
+
+  renderReportKPIs(hero);
+  renderReportInsights(data.insights || []);
+  renderReportTrend(data.anomaly_trend || []);
+  renderReportStates(data.anomaly_by_state || []);
+  renderReportTopAnomalies(data.top_anomalies || []);
+  renderReportWorst2024(data.worst_2024_predicted || []);
+}
+
+function renderReportKPIs(h) {
+  const el = document.getElementById("report-kpis");
+  if (!el) return;
+  const yr = (h.year_min && h.year_max) ? `${h.year_min}–${h.year_max}` : "—";
+  const anomPct = h.total_records ? ((h.anomaly_rate || 0) * 100).toFixed(1) : "0.0";
+  const items = [
+    { label: "Total records", value: fmtInt(h.total_records || 0), sub: "county-year-crop rows" },
+    { label: "Year range", value: yr, sub: `${(h.year_max || 0) - (h.year_min || 0) + 1} years` },
+    { label: "States", value: fmtInt(h.n_states || 0), sub: `${fmtInt(h.n_counties || 0)} counties` },
+    { label: "Commodities", value: fmtInt(h.n_commodities || 0), sub: "tracked crops" },
+    { label: "Anomalies", value: fmtInt(h.anomaly_count || 0), sub: `${anomPct}% rate` },
+    { label: "Weather anomalies", value: fmtInt(h.weather_anomaly_count || 0), sub: "NOAA-flagged events" },
+    { label: "Model R²", value: (h.model_r2 || 0).toFixed(4), sub: "test set" },
+    { label: "2024 predictions", value: fmtInt(h.n_pred_2024_rows || 0), sub: "prediction-only" },
+  ];
+  el.innerHTML = items.map((it) => `
+    <div class="report-kpi">
+      <div class="report-kpi-label">${escHtml(it.label)}</div>
+      <div class="report-kpi-value">${escHtml(it.value)}</div>
+      <div class="report-kpi-sub">${escHtml(it.sub)}</div>
+    </div>
+  `).join("");
+}
+
+function renderReportInsights(insights) {
+  const el = document.getElementById("report-insights");
+  if (!el) return;
+  if (!insights.length) {
+    el.innerHTML = `<li>No insights generated.</li>`;
+    return;
+  }
+  el.innerHTML = insights.map((s) => `<li>${escHtml(s)}</li>`).join("");
+}
+
+function renderReportTrend(rows) {
+  if (!rows.length) return;
+  const xs = rows.map((r) => r.year);
+  const total = rows.map((r) => r.total);
+  const anoms = rows.map((r) => r.anomalies);
+  const traces = [
+    {
+      x: xs, y: total,
+      type: "bar", name: "Total records",
+      marker: { color: "#cbd5e1" },
+      hovertemplate: "%{x}<br>Total: %{y}<extra></extra>",
+    },
+    {
+      x: xs, y: anoms,
+      type: "bar", name: "Anomalies",
+      marker: { color: "#dc2626" },
+      hovertemplate: "%{x}<br>Anomalies: %{y}<extra></extra>",
+    },
+  ];
+  Plotly.newPlot("report-trend", traces, {
+    margin: { l: 50, r: 16, t: 8, b: 40 },
+    barmode: "overlay",
+    xaxis: { title: { text: "Year", standoff: 8 }, gridcolor: "#eef0ee" },
+    yaxis: { title: { text: "Records", standoff: 10 }, gridcolor: "#eef0ee" },
+    font: PLOTLY_FONT,
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+    legend: { orientation: "h", y: 1.1, x: 0 },
+    height: 320,
+  }, PLOTLY_CFG);
+}
+
+function renderReportStates(rows) {
+  if (!rows.length) return;
+  rows = [...rows].reverse();
+  const trace = {
+    x: rows.map((r) => r.anomalies),
+    y: rows.map((r) => r.state_abbr),
+    type: "bar",
+    orientation: "h",
+    marker: { color: "#ea580c" },
+    hovertemplate: "%{y}<br>Anomalies: %{x}<extra></extra>",
+  };
+  Plotly.newPlot("report-states", [trace], {
+    margin: { l: 60, r: 16, t: 8, b: 40 },
+    xaxis: { title: { text: "Anomaly count", standoff: 8 }, gridcolor: "#eef0ee" },
+    yaxis: { automargin: true },
+    font: PLOTLY_FONT,
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+    height: Math.max(280, 22 * rows.length + 60),
+  }, PLOTLY_CFG);
+}
+
+function renderReportTopAnomalies(rows) {
+  const tbody = document.querySelector("#report-top-anomalies tbody");
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#64748b;padding:18px;">No anomalies recorded.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map((r) => {
+    const sr = r.signed_residual;
+    const color = sr == null ? "" : (sr < 0 ? "color:#dc2626;font-weight:600;" : "color:#059669;font-weight:600;");
+    return `
+      <tr>
+        <td>${fmtInt(r.year)}</td>
+        <td>${escHtml(r.state_abbr || "")}</td>
+        <td>${escHtml(r.county_name || "")}</td>
+        <td>${escHtml(r.commodity || "")}</td>
+        <td class="num">${fmtNum(r.yield_amount, 2)}</td>
+        <td class="num">${fmtNum(r.pred_yield, 2)}</td>
+        <td class="num" style="${color}">${sr == null ? "—" : (sr > 0 ? "+" : "") + sr.toFixed(2)}</td>
+        <td class="num">${fmtNum(r.residual_zscore, 2)}</td>
+        <td>${escHtml(r.outcome_category || "")}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function renderReportWorst2024(rows) {
+  const tbody = document.querySelector("#report-worst-2024 tbody");
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#64748b;padding:18px;">No 2024 prediction data.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map((r) => {
+    let irrig = "—";
+    if (r.irrigation === 1) irrig = "Irrigated";
+    else if (r.irrigation === 0) irrig = "Non-irrigated";
+    return `
+      <tr>
+        <td>${escHtml(r.state_abbr || "")}</td>
+        <td>${escHtml(r.county_name || "")}</td>
+        <td>${escHtml(r.commodity || "")}</td>
+        <td>${irrig}</td>
+        <td class="num"><strong>${fmtNum(r.pred_yield, 2)}</strong></td>
+        <td class="num">${fmtNum(r.avg_precip_mm, 1)}</td>
+        <td class="num">${fmtNum(r.heat_stress_days, 1)}</td>
+        <td class="num">${fmtNum(r.gdd, 0)}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+document.getElementById("report-refresh")?.addEventListener("click", async () => {
+  reportLoaded = false;
+  try { await fetch("/api/dashboard/refresh", { method: "POST" }); } catch {}
+  ensureReportLoaded(true);
+});
+document.getElementById("report-print")?.addEventListener("click", () => window.print());
+
+/* ─────────────────────────────────────────────────────────────────────
+   Boot
+   ───────────────────────────────────────────────────────────────────── */
+(function init() {
+  const initial = (location.hash || "").replace("#", "");
+  setRoute(ROUTES.includes(initial) ? initial : "assistant");
+  seedExampleConversation();
+  updateSendState();
+})();
 </script>
+
 </body>
 </html>

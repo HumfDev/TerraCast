@@ -13,3 +13,16 @@ env:
     value: "true"
   - name: LOG_PREDICTIONS
     value: "true"
+  - name: GENIE_SPACE_ID
+    value: "01f11500abac19c7a773ad486d62fbaf"
+
+resources:
+  - name: workspace.default.df_final_lightgbm
+    description: Historical anomaly detection data (2010-2023)
+    permission: READ
+  - name: workspace.default.predictions_2024_partial
+    description: 2024 prediction-only county-level records
+    permission: READ
+  - name: workspace.default.stats_2024_pred_summary
+    description: 2024 prediction summary statistics
+    permission: READ

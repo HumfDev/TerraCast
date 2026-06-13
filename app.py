@@ -37,6 +37,9 @@ HARDCODED_HEAT_STRESS_RESPONSE = (
 DEBUG_LOG_PATH = Path(__file__).parent / ".cursor" / "debug-20e96c.log"
 DEBUG_SESSION_ID = "20e96c"
 
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+
 app = FastAPI(title="TerraCast", description="Weather-based crop yield prediction + Genie AI")
 
 _executor = ThreadPoolExecutor(max_workers=4)
@@ -176,10 +179,13 @@ print(f"  Models dir:     {MODELS_DIR}")
 print(f"  Regional models: {len(_loaded_regions)}/6 loaded  ({', '.join(sorted(set(_loaded_regions))) or 'none'})")
 print(f"  Corn trend:     {'✓' if CORN_TREND else '✗ missing'} ({len(CORN_TREND)} states)")
 print(f"  Soybean trend:  {'✓' if SOY_TREND else '✗ missing'} ({len(SOY_TREND)} states)")
-_store_cfg = get_store().config
-print(f"  Lakehouse:      {'✓ configured' if _store_cfg.enabled else '✗ set SQL_WAREHOUSE_ID'}")
-if _store_cfg.enabled:
-    print(f"  Merged table:   {_store_cfg.merged_table}")
+try:
+    _store_cfg = get_store().config
+    print(f"  Lakehouse:      {'✓ configured' if _store_cfg.enabled else '✗ set SQL_WAREHOUSE_ID'}")
+    if _store_cfg.enabled:
+        print(f"  Merged table:   {_store_cfg.merged_table}")
+except Exception as _e:
+    print(f"  Lakehouse:      ✗ config error: {_e!r}")
 print("=" * 58)
 
 
@@ -383,13 +389,29 @@ class ChatResponse(BaseModel):
 # Genie API Integration
 # -------------------------------------------------------------------
 
+def _build_workspace_client():
+    """Build a WorkspaceClient that works both in Databricks Apps and locally.
+
+    Inside a Databricks App the runtime injects the app's service-principal
+    OAuth credentials (DATABRICKS_CLIENT_ID / DATABRICKS_CLIENT_SECRET / DATABRICKS_HOST),
+    so default auth must be used. Browser auth only makes sense for local dev.
+    """
+    from databricks.sdk import WorkspaceClient
+
+    if os.environ.get("DATABRICKS_CLIENT_ID") and os.environ.get("DATABRICKS_CLIENT_SECRET"):
+        return WorkspaceClient()
+
+    host = os.environ.get("DATABRICKS_HOST", "")
+    return WorkspaceClient(host=host, auth_type="external-browser")
+
+
 def _ask_genie_sync(space_id: str, message: str, conversation_id: Optional[str], run_id: str) -> dict:
     """
     Blocking call to Databricks Genie API via SDK.
     Runs in a thread pool to avoid blocking the async event loop.
     """
     try:
-        from databricks.sdk import WorkspaceClient
+        from databricks.sdk import WorkspaceClient  # noqa: F401
     except ImportError:
         return {
             "response": (
@@ -402,10 +424,7 @@ def _ask_genie_sync(space_id: str, message: str, conversation_id: Optional[str],
         }
 
     try:
-        w = WorkspaceClient(
-            host=os.environ.get("DATABRICKS_HOST", "https://community.cloud.databricks.com"),
-            auth_type="external-browser",
-        )
+        w = _build_workspace_client()
         genie_result = None
         new_conv_id = conversation_id
         timeout = timedelta(seconds=GENIE_TIMEOUT_SECONDS)
@@ -517,6 +536,9 @@ def _ask_genie_sync(space_id: str, message: str, conversation_id: Optional[str],
         error_type = ""
         error_text = ""
 
+        print(f"[GENIE-ERROR] {type(exc).__name__}: {exc}", flush=True)
+        print(traceback.format_exc(), flush=True)
+
         if type(exc).__name__ == "OperationFailed":
             try:
                 bind = waiter.bind() if waiter is not None else {}
@@ -531,6 +553,7 @@ def _ask_genie_sync(space_id: str, message: str, conversation_id: Optional[str],
                 error_type = str(getattr(err_obj, "type", None)) if err_obj else ""
                 error_text = str(getattr(err_obj, "error", None)) if err_obj else ""
                 failed_status = str(getattr(failed_message, "status", None)) if failed_message else None
+                print(f"[GENIE-ERROR] failed_status={failed_status} type={error_type} text={error_text}", flush=True)
 
                 _debug_log(
                     run_id, "H6", "app.py:_ask_genie_sync:failed_message_details",
@@ -582,8 +605,10 @@ def _ask_genie_sync(space_id: str, message: str, conversation_id: Optional[str],
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    with open("static/index.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    index_path = STATIC_DIR / "index.html"
+    if not index_path.exists():
+        raise HTTPException(status_code=500, detail=f"index.html not found at {index_path}")
+    return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
 
 
 def _fetch_features_sync(
@@ -747,7 +772,120 @@ async def health():
     }
 
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# -------------------------------------------------------------------
+# Dashboard data API (Historical anomaly + 2024 predictions)
+# -------------------------------------------------------------------
+
+@app.get("/api/dashboard/historical")
+async def api_dashboard_historical():
+    from dashboard_data import historical_full
+    loop = asyncio.get_event_loop()
+    try:
+        return await loop.run_in_executor(_executor, historical_full)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Historical dashboard query failed: {exc}",
+        ) from exc
+
+
+@app.get("/api/dashboard/predictions-2024")
+async def api_dashboard_predictions_2024():
+    from dashboard_data import predictions_2024_full
+    loop = asyncio.get_event_loop()
+    try:
+        return await loop.run_in_executor(_executor, predictions_2024_full)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"2024 prediction dashboard query failed: {exc}",
+        ) from exc
+
+
+@app.post("/api/dashboard/refresh")
+async def api_dashboard_refresh():
+    from dashboard_data import clear_cache
+    clear_cache()
+    return {"ok": True}
+
+
+# -------------------------------------------------------------------
+# Predictor (lookup-based; real model inference hook reserved)
+# -------------------------------------------------------------------
+
+class PredictorLookupRequest(BaseModel):
+    year: int
+    commodity: str
+    state: Optional[str] = None  # None / "" => all states
+    county: Optional[str] = None
+    irrigation: Optional[int] = None  # 0 / 1 / None
+
+    avg_precip_mm: Optional[float] = None
+    heat_stress_days: Optional[float] = None
+    gdd: Optional[float] = None
+    drought_flag: Optional[int] = None
+    flood_flag: Optional[int] = None
+    extreme_heat_flag: Optional[int] = None
+    extreme_events: Optional[int] = None
+
+
+@app.get("/api/predictor/options")
+async def api_predictor_options():
+    from dashboard_data import predictor_options
+    loop = asyncio.get_event_loop()
+    try:
+        return await loop.run_in_executor(_executor, predictor_options)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Predictor options query failed: {exc}",
+        ) from exc
+
+
+@app.post("/api/predictor/lookup")
+async def api_predictor_lookup(req: PredictorLookupRequest):
+    from dashboard_data import predictor_lookup
+    loop = asyncio.get_event_loop()
+    try:
+        result = await loop.run_in_executor(
+            _executor,
+            lambda: predictor_lookup(
+                year=req.year,
+                commodity=req.commodity,
+                state=(req.state or None),
+                county=(req.county or None),
+                irrigation=req.irrigation,
+            ),
+        )
+        return result
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Predictor lookup failed: {exc}",
+        ) from exc
+
+
+# -------------------------------------------------------------------
+# Report (Executive Summary)
+# -------------------------------------------------------------------
+
+@app.get("/api/report/summary")
+async def api_report_summary():
+    from dashboard_data import report_summary
+    loop = asyncio.get_event_loop()
+    try:
+        return await loop.run_in_executor(_executor, report_summary)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Report summary query failed: {exc}",
+        ) from exc
+
+
+if STATIC_DIR.is_dir():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+else:
+    print(f"  WARNING: static dir not found at {STATIC_DIR}; /static is disabled")
 
 if __name__ == "__main__":
     import uvicorn
