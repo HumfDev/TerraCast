@@ -127,6 +127,45 @@ def _debug_log(run_id: str, hypothesis_id: str, location: str, message: str, dat
 
 _volume = (os.environ.get("MODEL_VOLUME_PATH") or "").strip()
 MODELS_DIR = Path(_volume) if _volume else Path("models")
+LOCAL_MODELS_DIR = Path("/tmp/terracast_models")
+
+
+def _stage_models_from_volume():
+    """If the volume isn't filesystem-mounted in the app runtime, mirror its
+    contents to a local tmp directory using the Databricks SDK so the app can
+    read pickles via standard file I/O. Idempotent — silently no-ops when the
+    volume is already accessible or when the SDK can't reach it.
+    """
+    global MODELS_DIR
+    if MODELS_DIR.exists() and any(MODELS_DIR.iterdir() if MODELS_DIR.is_dir() else []):
+        return
+    volume_str = str(MODELS_DIR)
+    if not volume_str.startswith("/Volumes/"):
+        return
+    try:
+        from databricks.sdk import WorkspaceClient
+        w = WorkspaceClient()
+        LOCAL_MODELS_DIR.mkdir(parents=True, exist_ok=True)
+        listed = list(w.files.list_directory_contents(volume_str))
+        for entry in listed:
+            name = (entry.name or "").lstrip("/")
+            if not name or entry.is_directory:
+                continue
+            target = LOCAL_MODELS_DIR / name
+            with w.files.download(f"{volume_str}/{name}").contents as src:
+                with target.open("wb") as dst:
+                    while True:
+                        chunk = src.read(1 << 20)
+                        if not chunk:
+                            break
+                        dst.write(chunk)
+        MODELS_DIR = LOCAL_MODELS_DIR
+        print(f"  Staged {len(listed)} files from {volume_str} → {LOCAL_MODELS_DIR}")
+    except Exception as exc:
+        print(f"  ⚠ volume stage skipped: {exc!r}")
+
+
+_stage_models_from_volume()
 
 
 def _load_pkl(name):
@@ -174,9 +213,25 @@ GLOBAL_TREND = {"corn": [130.0, 2.2], "soybeans": [36.0, 0.55]}
 
 _loaded_regions = [r for (_, r), m in REGIONAL_MODELS.items() if m is not None]
 
+# Ensemble (LightGBM + Random Forest) artifacts written by the
+# `terracast_export_ensemble` notebook job. Each pickle stores the trained
+# LGBM booster + RF regressor for one (crop, region) pair, plus the feature
+# schema and ensemble blending weights so we can reproduce the exact
+# inference pipeline at request time.
+ENSEMBLE_MODELS: dict[tuple[str, str], dict] = {}
+ENSEMBLE_MANIFEST: dict = {}
+for _crop_key in ("Corn", "Soybeans"):
+    for _region_key in ("midwest", "plains", "south"):
+        _payload = _load_pkl(f"ensemble_{_crop_key.lower()}_{_region_key}.pkl")
+        if _payload is not None:
+            ENSEMBLE_MODELS[(_crop_key.lower(), _region_key)] = _payload
+ENSEMBLE_MANIFEST = _load_json("ensemble_manifest.json")
+_loaded_ensemble = [f"{c}_{r}" for (c, r) in ENSEMBLE_MODELS.keys()]
+
 print("=" * 58)
 print(f"  Models dir:     {MODELS_DIR}")
 print(f"  Regional models: {len(_loaded_regions)}/6 loaded  ({', '.join(sorted(set(_loaded_regions))) or 'none'})")
+print(f"  Ensemble models: {len(ENSEMBLE_MODELS)}/6 loaded  ({', '.join(sorted(_loaded_ensemble)) or 'none'})")
 print(f"  Corn trend:     {'✓' if CORN_TREND else '✗ missing'} ({len(CORN_TREND)} states)")
 print(f"  Soybean trend:  {'✓' if SOY_TREND else '✗ missing'} ({len(SOY_TREND)} states)")
 try:
@@ -320,6 +375,45 @@ def engineer_features(inp: YieldInput, state_baseline: float, county_baseline: f
     }])
 
 
+def _predict_ensemble(
+    crop_key: str,
+    region: str,
+    X,
+) -> tuple[float, dict] | None:
+    """Run the LightGBM+RF ensemble for a single (crop, region).
+
+    Returns (predicted_yield, components) where `components` carries the raw
+    LGBM/RF predictions and blending weights so the caller can surface them
+    in the API response. Returns None if no ensemble artifact is loaded for
+    the given key.
+    """
+    payload = ENSEMBLE_MODELS.get((crop_key, region))
+    if payload is None:
+        return None
+
+    feature_names = payload.get("features") or list(X.columns)
+    weights = payload.get("weights") or {"lgbm": 0.6, "rf": 0.4}
+
+    import pandas as pd
+    X_aligned = X.copy()
+    for col in feature_names:
+        if col not in X_aligned.columns:
+            X_aligned[col] = 0.0
+    X_aligned = X_aligned[feature_names]
+
+    lgbm_pred = float(payload["lgbm"].predict(X_aligned)[0])
+    rf_pred = float(payload["rf"].predict(X_aligned)[0])
+    w_lgbm = float(weights.get("lgbm", 0.6))
+    w_rf = float(weights.get("rf", 0.4))
+    blended = w_lgbm * lgbm_pred + w_rf * rf_pred
+
+    return blended, {
+        "lgbm": round(lgbm_pred, 2),
+        "rf": round(rf_pred, 2),
+        "weights": {"lgbm": w_lgbm, "rf": w_rf},
+    }
+
+
 def predict_yield(inp: YieldInput) -> PredictionResult:
     crop_key  = "corn" if inp.crop_type.lower() == "corn" else "soybeans"
     region    = _get_region(inp.state_abbr)
@@ -341,8 +435,11 @@ def predict_yield(inp: YieldInput) -> PredictionResult:
         trend_x = float(inp.year)
     trend_val = float(P.polyval(trend_x, coeffs))
 
-    if model is not None:
-        X = engineer_features(inp, state_bl, effective_county_bl)
+    X = engineer_features(inp, state_bl, effective_county_bl)
+    ensemble_out = _predict_ensemble(crop_key, region, X)
+    if ensemble_out is not None:
+        predicted = round(ensemble_out[0], 1)
+    elif model is not None:
         raw = model.predict(X)
         predicted = round(float(raw.iloc[0, 0] if hasattr(raw, "iloc") else raw[0]), 1)
     else:
@@ -865,6 +962,122 @@ async def api_predictor_lookup(req: PredictorLookupRequest):
         ) from exc
 
 
+class PredictorRealRequest(BaseModel):
+    """Inputs for the real LightGBM+RF ensemble inference path.
+
+    Defaults are chosen to be neutral (or US-Midwest typical) so the UI can
+    submit a partial form and still get a reasonable prediction. The Predictor
+    page derives `state_fips` / `county_fips` only when needed; for now the
+    ensemble model only requires the engineered weather + baselines.
+    """
+    year: int
+    commodity: str
+    state: str
+    county: Optional[str] = None
+    is_irrigated: int = 0
+
+    avg_temp_max_c: float = 28.0
+    avg_temp_min_c: float = 13.0
+    avg_temp_mean_c: float = 21.0
+    peak_temp_max_c: float = 34.0
+    heat_stress_days: float = 8.0
+    avg_precip_mm: float = 380.0
+    precip_std_mm: float = 25.0
+    dry_days: float = 30.0
+    heavy_rain_days: float = 4.0
+    gdd: float = 2400.0
+    frost_days: float = 0.0
+    winter_snowfall_mm: float = 0.0
+    snow_days: float = 0.0
+
+
+@app.post("/api/predictor/predict")
+async def api_predictor_predict(req: PredictorRealRequest):
+    """Run the LightGBM+RF ensemble for a single (crop, state, ...) input.
+
+    Falls back to the single-LightGBM path or the heuristic fallback when the
+    ensemble artifacts aren't loaded — but always returns the same response
+    shape so the UI can render consistently.
+    """
+    crop_norm = "Corn" if req.commodity.lower() == "corn" else "Soybeans"
+    state_abbr = (req.state or "").strip().upper()
+    if not state_abbr:
+        raise HTTPException(status_code=400, detail="State is required for real-model prediction.")
+
+    inp = YieldInput(
+        crop_type=crop_norm,
+        state_abbr=state_abbr,
+        county_fips=0,
+        state_fips=0,
+        year=int(req.year),
+        is_irrigated=int(req.is_irrigated or 0),
+        avg_temp_max_c=req.avg_temp_max_c,
+        avg_temp_min_c=req.avg_temp_min_c,
+        avg_temp_mean_c=req.avg_temp_mean_c,
+        peak_temp_max_c=req.peak_temp_max_c,
+        heat_stress_days=req.heat_stress_days,
+        avg_precip_mm=req.avg_precip_mm,
+        precip_std_mm=req.precip_std_mm,
+        dry_days=req.dry_days,
+        heavy_rain_days=req.heavy_rain_days,
+        gdd=req.gdd,
+        frost_days=req.frost_days,
+        winter_snowfall_mm=req.winter_snowfall_mm,
+        snow_days=req.snow_days,
+    )
+
+    crop_key = "corn" if crop_norm == "Corn" else "soybeans"
+    region = _get_region(state_abbr)
+    baselines = CORN_BASELINES if crop_key == "corn" else SOY_BASELINES
+    state_bl = float(baselines.get("state", {}).get(state_abbr, 0.0))
+    X = engineer_features(inp, state_bl, state_bl)
+
+    loop = asyncio.get_event_loop()
+    try:
+        ens = await loop.run_in_executor(_executor, _predict_ensemble, crop_key, region, X)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Real-model prediction failed: {exc}",
+        ) from exc
+
+    response: dict = {
+        "commodity": crop_norm,
+        "state": state_abbr,
+        "region": region,
+        "year": int(req.year),
+        "is_irrigated": int(req.is_irrigated or 0),
+        "model": None,
+        "predicted_yield": None,
+        "components": None,
+        "manifest": {
+            "test_r2": ENSEMBLE_MANIFEST.get("test_r2"),
+            "test_mae": ENSEMBLE_MANIFEST.get("test_mae"),
+            "ensemble_weights": ENSEMBLE_MANIFEST.get("ensemble_weights"),
+        },
+    }
+
+    if ens is not None:
+        predicted, components = ens
+        response["model"] = "ensemble_lgbm_rf"
+        response["predicted_yield"] = round(predicted, 2)
+        response["components"] = components
+    else:
+        # Fall back to the single LightGBM path so the UI never sees an empty
+        # response. Mark the source so the client can warn the user.
+        try:
+            single = await loop.run_in_executor(_executor, predict_yield, inp)
+            response["model"] = "single_lightgbm" if REGIONAL_MODELS.get((crop_key, region)) else "heuristic"
+            response["predicted_yield"] = round(float(single.predicted_yield), 2)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Prediction fallback failed: {exc}",
+            ) from exc
+
+    return response
+
+
 # -------------------------------------------------------------------
 # Report (Executive Summary)
 # -------------------------------------------------------------------
@@ -879,6 +1092,23 @@ async def api_report_summary():
         raise HTTPException(
             status_code=502,
             detail=f"Report summary query failed: {exc}",
+        ) from exc
+
+
+# -------------------------------------------------------------------
+# Model dashboard
+# -------------------------------------------------------------------
+
+@app.get("/api/model/dashboard")
+async def api_model_dashboard():
+    from dashboard_data import model_dashboard
+    loop = asyncio.get_event_loop()
+    try:
+        return await loop.run_in_executor(_executor, model_dashboard)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Model dashboard query failed: {exc}",
         ) from exc
 
 

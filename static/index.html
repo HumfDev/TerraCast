@@ -958,6 +958,129 @@
       .report-cover { break-after: avoid; }
     }
 
+    /* ── Model Dashboard ── */
+    .model-page { max-width: 1200px; margin: 0 auto; }
+    .model-header { text-align: center; margin-bottom: 22px; }
+    .model-title {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.015em;
+    }
+    .model-subtitle {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .model-status {
+      padding: 32px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .model-body { display: flex; flex-direction: column; gap: 22px; }
+
+    .model-kpis {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .model-kpi {
+      background: #fff;
+      border-radius: 12px;
+      padding: 28px 18px;
+      text-align: center;
+      border: 3px solid;
+      box-shadow: var(--shadow-sm);
+    }
+    .model-kpi-value {
+      font-size: 36px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+    .model-kpi-label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+    .kpi-green  { border-color: #2ECC71; }
+    .kpi-green .model-kpi-value  { color: #2ECC71; }
+    .kpi-orange { border-color: #F39C12; }
+    .kpi-orange .model-kpi-value { color: #F39C12; }
+    .kpi-blue   { border-color: #3498DB; }
+    .kpi-blue .model-kpi-value   { color: #3498DB; }
+
+    .model-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 900px) {
+      .model-kpis { grid-template-columns: 1fr; }
+      .model-grid-2 { grid-template-columns: 1fr; }
+    }
+
+    .model-chart-card {
+      background: #fff;
+      border: 1px solid var(--border-2);
+      border-radius: 12px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow-sm);
+    }
+    .model-chart-title {
+      font-size: 14px;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+    .model-chart { width: 100%; height: 320px; }
+    .model-chart-tall { height: 360px; }
+
+    .model-config-card {
+      background: #fff;
+      border: 1px solid var(--border-2);
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .model-config-title {
+      font-size: 15px;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+    .model-config-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .model-config-table thead th {
+      text-align: left;
+      padding: 8px 12px;
+      background: var(--bg-2);
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid var(--border-2);
+    }
+    .model-config-table tbody td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-2);
+      color: var(--text);
+    }
+    .model-config-table tbody td:first-child {
+      width: 35%;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
     /* ── Predictor form ── */
     .pred-form-card { padding: 22px 24px; }
     .pred-form { margin-top: 12px; }
@@ -1200,19 +1323,6 @@
     <!-- ── Assistant page ── -->
     <section class="page active" id="page-assistant">
       <div class="assistant-shell">
-        <div class="hackathon-banner">
-          <div class="logo-block"><img src="/static/logo.png" alt="TerraCast logo"></div>
-          <div class="copy">
-            <div class="eyebrow">UW × Databricks Hackathon</div>
-            <h2>TerraCast</h2>
-            <p class="tagline">Weather-to-yield intelligence for exploring crop patterns, spotting anomalies, and testing prediction scenarios.</p>
-            <div class="tag-row">
-              <span class="tag tag-noaa">NOAA Weather</span>
-              <span class="tag tag-yield">Yield Signals</span>
-              <span class="tag tag-ml">ML Prediction</span>
-            </div>
-          </div>
-        </div>
         <div class="assistant-hero">
           <h1>Welcome to Genie</h1>
           <p>Ask questions, analyze data, and get AI-powered insights about your crop yields.</p>
@@ -1404,7 +1514,7 @@
         <header class="page-header" style="display:flex; align-items:flex-end; gap:14px;">
           <div>
             <div class="page-title">Predictor</div>
-            <div class="page-sub">Lookup-based yield prediction · explore matching counties &amp; predicted yields</div>
+            <div class="page-sub" id="pred-page-sub">Run the LightGBM + Random Forest ensemble or look up matching county history.</div>
           </div>
         </header>
 
@@ -1482,10 +1592,34 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 Run lookup
               </button>
+              <button type="button" class="primary-btn" id="pred-real-btn" style="background: linear-gradient(135deg, #6d28d9, #4f46e5);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9z"/></svg>
+                Run real model
+              </button>
               <button type="button" class="ghost-btn" id="pred-reset-btn">Reset</button>
-              <span class="pred-mode-badge" id="pred-mode-badge">Mode: lookup-based</span>
+              <span class="pred-mode-badge" id="pred-mode-badge">Lookup + Ensemble inference</span>
             </div>
           </form>
+        </div>
+
+        <!-- Real-model prediction card (LightGBM + RF ensemble) -->
+        <div id="pred-real-card" class="card hidden" style="margin-top:18px; border: 1px solid rgba(124, 58, 237, 0.3); background: linear-gradient(180deg, rgba(124, 58, 237, 0.06), rgba(79, 70, 229, 0.02));">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:18px; flex-wrap:wrap;">
+            <div>
+              <div class="card-label" style="color:#7c3aed; letter-spacing:0.5px;">REAL-MODEL PREDICTION</div>
+              <div class="card-title" id="pred-real-title">Ensemble prediction</div>
+              <div class="card-hint" id="pred-real-meta">—</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:48px; font-weight:700; color: var(--text); line-height:1;" id="pred-real-yield">—</div>
+              <div class="card-hint" style="margin-top:4px;">bushels / acre</div>
+            </div>
+          </div>
+          <div class="grid cols-3" style="margin-top:14px;">
+            <div class="card subtle"><div class="card-label">LightGBM</div><div class="card-value" id="pred-real-lgbm">—</div><div class="card-hint" id="pred-real-lgbm-w">weight —</div></div>
+            <div class="card subtle"><div class="card-label">Random Forest</div><div class="card-value" id="pred-real-rf">—</div><div class="card-hint" id="pred-real-rf-w">weight —</div></div>
+            <div class="card subtle"><div class="card-label">Test R² · MAE</div><div class="card-value" id="pred-real-metrics" style="font-size:18px;">—</div><div class="card-hint">held-out 2021–2023</div></div>
+          </div>
         </div>
 
         <!-- Results -->
@@ -1655,7 +1789,7 @@
             <div class="report-section-title">Methodology &amp; data sources</div>
             <ul>
               <li><b>Historical:</b> RMA County Yields × NOAA daily weather (avg precip mm, heat-stress days, GDD), merged at county-year-commodity level.</li>
-              <li><b>Model:</b> LightGBM regressor predicting per-county yield from weather + categorical (state, county, commodity, irrigation). R² = <b>0.4220</b>.</li>
+              <li><b>Model:</b> LightGBM regressor predicting per-county yield from weather + categorical (state, county, commodity, irrigation). R² = <b>0.6440</b>.</li>
               <li><b>Anomaly definition:</b> <code>anomaly_flag = 1</code> when residual z-score ≥ 2 OR a NOAA weather anomaly is present.</li>
               <li><b>Outcome categories:</b> Normal · Extreme Weather Model Handled · Extreme Weather Yield Impact · Yield Mismatch / Unexplained.</li>
               <li><b>2024 predictions:</b> Pure forecasts driven by NOAA window weather; no observed yields available, so they cannot be confirmed anomalies.</li>
@@ -1671,36 +1805,58 @@
 
     <!-- ── Model page ── -->
     <section class="page" id="page-model">
-      <div class="page-inner">
-        <header class="page-header">
-          <div class="page-title">Model</div>
-          <div class="page-sub">Models &amp; Settings</div>
+      <div class="page-inner model-page">
+        <header class="model-header">
+          <div class="model-title">TerraCast · Model Dashboard</div>
+          <div class="model-subtitle">Ensemble: LightGBM (60%) + Random Forest (40%) | Corn &amp; Soybeans | Midwest / Plains / South</div>
         </header>
 
-        <div class="grid cols-2">
-          <div class="card">
-            <div class="card-label">Configuration</div>
-            <div class="card-title">Model Configuration</div>
-            <div class="card-body">Choose region (Midwest, Plains, South), commodity (Corn, Soybeans), and feature set.</div>
-            <div class="card-empty">Configuration panel coming soon</div>
+        <div id="model-status" class="model-status">Loading model dashboard…</div>
+
+        <div id="model-body" class="model-body" hidden>
+          <div class="model-kpis">
+            <div class="model-kpi kpi-green">
+              <div class="model-kpi-value" id="model-kpi-r2">—</div>
+              <div class="model-kpi-label" id="model-kpi-r2-label">Test R² (2021–2023)</div>
+            </div>
+            <div class="model-kpi kpi-orange">
+              <div class="model-kpi-value" id="model-kpi-mae">—</div>
+              <div class="model-kpi-label">Test MAE (bu/ac)</div>
+            </div>
+            <div class="model-kpi kpi-blue">
+              <div class="model-kpi-value" id="model-kpi-rows">—</div>
+              <div class="model-kpi-label">Train / Test rows</div>
+            </div>
           </div>
-          <div class="card">
-            <div class="card-label">Training</div>
-            <div class="card-title">Training Status</div>
-            <div class="card-body">Latest training run, dataset size, and run duration.</div>
-            <div class="card-empty">Status panel coming soon</div>
+
+          <div class="model-grid-2">
+            <div class="model-chart-card">
+              <div class="model-chart-title" id="model-cr-title">Test R² by Crop × Region</div>
+              <div id="model-chart-cr" class="model-chart"></div>
+            </div>
+            <div class="model-chart-card">
+              <div class="model-chart-title" id="model-c-title">Test R² by Crop</div>
+              <div id="model-chart-c" class="model-chart"></div>
+            </div>
           </div>
-          <div class="card">
-            <div class="card-label">Evaluation</div>
-            <div class="card-title">Evaluation Metrics</div>
-            <div class="card-body">R², residual statistics, and anomaly precision.</div>
-            <div class="card-empty">Metrics view coming soon</div>
+
+          <div class="model-grid-2">
+            <div class="model-chart-card">
+              <div class="model-chart-title" id="model-pa-title">Predicted vs Actual Yield</div>
+              <div id="model-chart-pa" class="model-chart model-chart-tall"></div>
+            </div>
+            <div class="model-chart-card">
+              <div class="model-chart-title" id="model-res-title">Avg |Residual| by Year</div>
+              <div id="model-chart-res" class="model-chart model-chart-tall"></div>
+            </div>
           </div>
-          <div class="card">
-            <div class="card-label">Settings</div>
-            <div class="card-title">App Settings</div>
-            <div class="card-body">Genie space, SQL warehouse, model artifact path.</div>
-            <div class="card-empty">Settings form coming soon</div>
+
+          <div class="model-config-card">
+            <div class="model-config-title">Model Configuration</div>
+            <table class="model-config-table" id="model-config-table">
+              <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
+              <tbody></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -1738,6 +1894,9 @@ function setRoute(name) {
   }
   if (name === "report") {
     ensureReportLoaded();
+  }
+  if (name === "model") {
+    ensureModelLoaded();
   }
 }
 
@@ -2066,7 +2225,7 @@ function renderHistoricalView() {
   setKpi("hist-anomalies", fmtInt(anomalyCount));
   setKpi("hist-rate", `${overallRate.toFixed(2)}%`);
   setKpiHint("hist-rate", `Anomaly Rate (${scoredRate.toFixed(2)}% scored)`);
-  setKpi("hist-r2", (data.model_r2 || 0.4220).toFixed(4));
+  setKpi("hist-r2", (data.model_r2 || 0.6440).toFixed(4));
 
   const filtered = applyHistoricalFilters(rows, dashState.filters.historical);
   renderResidualMap(filtered);
@@ -2467,13 +2626,109 @@ document.getElementById("pred-form")?.addEventListener("submit", async (ev) => {
   await runPredictorLookup();
 });
 
+document.getElementById("pred-real-btn")?.addEventListener("click", async () => {
+  await runPredictorRealModel();
+});
+
 document.getElementById("pred-reset-btn")?.addEventListener("click", () => {
   document.getElementById("pred-form")?.reset();
   document.getElementById("pred-results")?.classList.add("hidden");
   document.getElementById("pred-empty")?.classList.add("hidden");
+  document.getElementById("pred-real-card")?.classList.add("hidden");
   document.getElementById("pred-error")?.classList.add("hidden");
   document.getElementById("pred-state")?.dispatchEvent(new Event("change"));
 });
+
+async function runPredictorRealModel() {
+  document.getElementById("pred-error")?.classList.add("hidden");
+
+  const realBtn = document.getElementById("pred-real-btn");
+  const yearSel = document.getElementById("pred-year");
+  const commSel = document.getElementById("pred-commodity");
+  const stateSel = document.getElementById("pred-state");
+  const irrigationSel = document.getElementById("pred-irrigation");
+
+  const stateVal = (stateSel?.value || "").trim();
+  if (!stateVal) {
+    showPredError("Real model requires a State selection (region routing). Pick a state and try again.");
+    return;
+  }
+
+  const payload = {
+    year: parseInt(yearSel.value, 10),
+    commodity: commSel.value,
+    state: stateVal,
+    county: (document.getElementById("pred-county")?.value || null),
+    is_irrigated: irrigationSel.value === "1" ? 1 : 0,
+  };
+  const _avgPrecip = readNumOrNull("pred-avg-precip");
+  const _heatDays = readNumOrNull("pred-heat-stress");
+  const _gdd = readNumOrNull("pred-gdd");
+  if (_avgPrecip != null) payload.avg_precip_mm = _avgPrecip;
+  if (_heatDays != null) payload.heat_stress_days = _heatDays;
+  if (_gdd != null) payload.gdd = _gdd;
+
+  const originalLabel = realBtn.innerHTML;
+  realBtn.disabled = true;
+  realBtn.innerHTML = "Running…";
+
+  try {
+    const res = await fetch("/api/predictor/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await handleJson(res);
+    renderPredictorRealResult(data);
+  } catch (err) {
+    showPredError(err.message || String(err));
+    console.error(err);
+  } finally {
+    realBtn.disabled = false;
+    realBtn.innerHTML = originalLabel;
+  }
+}
+
+function renderPredictorRealResult(data) {
+  const card = document.getElementById("pred-real-card");
+  if (!card) return;
+  card.classList.remove("hidden");
+
+  const modelLabel = data.model === "ensemble_lgbm_rf"
+    ? "LightGBM + Random Forest ensemble"
+    : data.model === "single_lightgbm"
+    ? "Single LightGBM (ensemble artifacts unavailable)"
+    : "Heuristic fallback";
+  document.getElementById("pred-real-title").textContent = modelLabel;
+
+  const irrigText = data.is_irrigated === 1 ? "irrigated" : "non-irrigated";
+  document.getElementById("pred-real-meta").textContent =
+    `${data.commodity} · ${data.state} (${(data.region || "").toUpperCase()}) · ${data.year} · ${irrigText}`;
+
+  const yieldVal = (data.predicted_yield != null) ? data.predicted_yield.toFixed(1) : "—";
+  document.getElementById("pred-real-yield").textContent = yieldVal;
+
+  const c = data.components || {};
+  document.getElementById("pred-real-lgbm").textContent = c.lgbm != null ? c.lgbm.toFixed(2) : "—";
+  document.getElementById("pred-real-rf").textContent = c.rf != null ? c.rf.toFixed(2) : "—";
+  if (c.weights) {
+    document.getElementById("pred-real-lgbm-w").textContent = `weight ${(c.weights.lgbm * 100).toFixed(0)}%`;
+    document.getElementById("pred-real-rf-w").textContent = `weight ${(c.weights.rf * 100).toFixed(0)}%`;
+  } else {
+    document.getElementById("pred-real-lgbm-w").textContent = "—";
+    document.getElementById("pred-real-rf-w").textContent = "—";
+  }
+
+  const m = data.manifest || {};
+  if (m.test_r2 != null && m.test_mae != null) {
+    document.getElementById("pred-real-metrics").textContent =
+      `R² ${m.test_r2.toFixed(3)} · MAE ${m.test_mae.toFixed(2)}`;
+  } else {
+    document.getElementById("pred-real-metrics").textContent = "metrics unavailable";
+  }
+
+  card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
 
 function readNumOrNull(id) {
   const el = document.getElementById(id);
@@ -2887,6 +3142,249 @@ document.getElementById("report-refresh")?.addEventListener("click", async () =>
   ensureReportLoaded(true);
 });
 document.getElementById("report-print")?.addEventListener("click", () => window.print());
+
+/* ─────────────────────────────────────────────────────────────────────
+   Model dashboard (mirrors LightGBM notebook final cell)
+   ───────────────────────────────────────────────────────────────────── */
+const MODEL_CORN  = "#F4A300";
+const MODEL_SOY   = "#4A90E2";
+const MODEL_BLUE  = "#5A8FCB";
+let modelLoaded = false;
+let modelLoading = false;
+
+async function ensureModelLoaded(force = false) {
+  if (modelLoading) return;
+  if (modelLoaded && !force) return;
+  modelLoading = true;
+  const status = document.getElementById("model-status");
+  const body = document.getElementById("model-body");
+  if (status) {
+    status.style.display = "";
+    status.textContent = "Computing model metrics from df_final_lightgbm…";
+  }
+  if (body) body.hidden = true;
+  try {
+    const res = await fetch("/api/model/dashboard");
+    const data = await handleJson(res);
+    renderModelDashboard(data);
+    modelLoaded = true;
+    if (status) status.style.display = "none";
+    if (body) body.hidden = false;
+  } catch (err) {
+    if (status) {
+      status.style.display = "";
+      status.textContent = `Failed to build model dashboard: ${err.message || err}`;
+    }
+  } finally {
+    modelLoading = false;
+  }
+}
+
+function renderModelDashboard(data) {
+  const h = data.hero || {};
+  const yrs = (h.test_year_min && h.test_year_max)
+    ? `${h.test_year_min}–${h.test_year_max}`
+    : "test set";
+
+  const r2El = document.getElementById("model-kpi-r2");
+  if (r2El) r2El.textContent = h.test_r2 != null ? h.test_r2.toFixed(3) : "—";
+  const r2LblEl = document.getElementById("model-kpi-r2-label");
+  if (r2LblEl) r2LblEl.textContent = `Test R² (${yrs})`;
+  const maeEl = document.getElementById("model-kpi-mae");
+  if (maeEl) maeEl.textContent = h.test_mae != null ? h.test_mae.toFixed(2) : "—";
+  const rowsEl = document.getElementById("model-kpi-rows");
+  if (rowsEl) rowsEl.textContent = `${fmtInt(h.train_rows || 0)} / ${fmtInt(h.test_rows || 0)}`;
+
+  const subtitleEl = document.querySelector(".model-subtitle");
+  if (subtitleEl) {
+    const baseSub = "Ensemble: LightGBM (60%) + Random Forest (40%) | Corn & Soybeans | Midwest / Plains / South";
+    if (data.source === "historical_fallback") {
+      subtitleEl.innerHTML = `${baseSub}<br><span style="color:#b45309;">⚠ Legacy fallback — ensemble export tables not found. Run the LightGBM notebook export cell.</span>`;
+    } else {
+      subtitleEl.textContent = baseSub;
+    }
+  }
+  document.getElementById("model-cr-title").textContent = `Test R² by Crop × Region (held-out ${yrs})`;
+  document.getElementById("model-c-title").textContent  = `Test R² by Crop (held-out ${yrs})`;
+  document.getElementById("model-pa-title").textContent = `Predicted vs Actual Yield (test set ${yrs})`;
+  document.getElementById("model-res-title").textContent = `Avg |Residual| by Year (test set ${yrs})`;
+
+  renderModelChartCropRegion(data.r2_by_crop_region || [], h.test_r2);
+  renderModelChartCrop(data.r2_by_crop || [], h.test_r2);
+  renderModelChartScatter(data.scatter || [], h.test_r2, h.test_mae, h.test_rmse);
+  renderModelChartResiduals(data.residual_by_year || []);
+  renderModelConfig(data.config || []);
+}
+
+function renderModelChartCropRegion(rows, overall) {
+  const regions = ["Midwest", "Plains", "South"];
+  const corn = regions.map((r) => {
+    const row = rows.find((x) => x.region === r && x.crop === "Corn");
+    return row && row.r2 != null ? row.r2 : 0;
+  });
+  const soy = regions.map((r) => {
+    const row = rows.find((x) => x.region === r && x.crop === "Soybeans");
+    return row && row.r2 != null ? row.r2 : 0;
+  });
+  const traces = [
+    {
+      x: regions, y: corn, type: "bar", name: "Corn",
+      marker: { color: MODEL_CORN },
+      text: corn.map((v) => v.toFixed(2)),
+      textposition: "outside",
+      hovertemplate: "%{x} — Corn<br>R²: %{y:.3f}<extra></extra>",
+    },
+    {
+      x: regions, y: soy, type: "bar", name: "Soybeans",
+      marker: { color: MODEL_SOY },
+      text: soy.map((v) => v.toFixed(2)),
+      textposition: "outside",
+      hovertemplate: "%{x} — Soybeans<br>R²: %{y:.3f}<extra></extra>",
+    },
+  ];
+  const shapes = overall != null ? [{
+    type: "line", xref: "paper", x0: 0, x1: 1,
+    y0: overall, y1: overall,
+    line: { color: "#000", width: 1, dash: "dash" },
+  }] : [];
+  const annotations = overall != null ? [{
+    xref: "paper", yref: "y", x: 1, y: overall,
+    text: `Overall R²=${overall.toFixed(2)}`,
+    showarrow: false, xanchor: "right", yanchor: "bottom",
+    font: { size: 11, color: "#444" },
+  }] : [];
+  Plotly.newPlot("model-chart-cr", traces, {
+    margin: { l: 50, r: 16, t: 8, b: 40 },
+    barmode: "group",
+    yaxis: { range: [0, 1], title: { text: "R²", standoff: 10 }, gridcolor: "#eef0ee" },
+    xaxis: { gridcolor: "#eef0ee" },
+    shapes, annotations,
+    legend: { orientation: "v", x: 1, y: 1 },
+    font: PLOTLY_FONT,
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+    height: 320,
+  }, PLOTLY_CFG);
+}
+
+function renderModelChartCrop(rows, overall) {
+  const crops = ["Corn", "Soybeans"];
+  const colors = { Corn: MODEL_CORN, Soybeans: MODEL_SOY };
+  const vals = crops.map((c) => {
+    const row = rows.find((x) => x.crop === c);
+    return row && row.r2 != null ? row.r2 : 0;
+  });
+  const trace = {
+    x: crops, y: vals, type: "bar",
+    marker: { color: crops.map((c) => colors[c]) },
+    text: vals.map((v) => v.toFixed(3)),
+    textposition: "outside",
+    hovertemplate: "%{x}<br>R²: %{y:.3f}<extra></extra>",
+  };
+  const shapes = overall != null ? [{
+    type: "line", xref: "paper", x0: 0, x1: 1,
+    y0: overall, y1: overall,
+    line: { color: "#000", width: 1, dash: "dash" },
+  }] : [];
+  const annotations = overall != null ? [{
+    xref: "paper", yref: "y", x: 1, y: overall,
+    text: `Overall=${overall.toFixed(3)}`,
+    showarrow: false, xanchor: "right", yanchor: "bottom",
+    font: { size: 11, color: "#444" },
+  }] : [];
+  Plotly.newPlot("model-chart-c", [trace], {
+    margin: { l: 50, r: 16, t: 8, b: 40 },
+    yaxis: { range: [0, 1], title: { text: "R²", standoff: 10 }, gridcolor: "#eef0ee" },
+    xaxis: { gridcolor: "#eef0ee" },
+    shapes, annotations,
+    showlegend: false,
+    font: PLOTLY_FONT,
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+    height: 320,
+  }, PLOTLY_CFG);
+}
+
+function renderModelChartScatter(scatter, r2, mae, rmse) {
+  if (!scatter.length) return;
+  const corn = scatter.filter((p) => p.crop === "Corn");
+  const soy  = scatter.filter((p) => p.crop === "Soybeans");
+  const all = scatter.map((p) => Math.max(p.actual, p.predicted));
+  const maxVal = Math.max(250, Math.ceil(Math.max(...all) / 10) * 10);
+  const traces = [
+    {
+      x: corn.map((p) => p.actual), y: corn.map((p) => p.predicted),
+      mode: "markers", type: "scattergl", name: "Corn",
+      marker: { color: MODEL_CORN, size: 5, opacity: 0.55 },
+      hovertemplate: "Corn<br>%{customdata}<br>Actual: %{x:.1f}<br>Pred: %{y:.1f}<extra></extra>",
+      customdata: corn.map((p) => `${p.county || ""} (${p.state || ""}) ${p.year || ""}`),
+    },
+    {
+      x: soy.map((p) => p.actual), y: soy.map((p) => p.predicted),
+      mode: "markers", type: "scattergl", name: "Soybeans",
+      marker: { color: MODEL_SOY, size: 5, opacity: 0.55 },
+      hovertemplate: "Soybeans<br>%{customdata}<br>Actual: %{x:.1f}<br>Pred: %{y:.1f}<extra></extra>",
+      customdata: soy.map((p) => `${p.county || ""} (${p.state || ""}) ${p.year || ""}`),
+    },
+    {
+      x: [0, maxVal], y: [0, maxVal],
+      mode: "lines", type: "scatter", name: "y = x",
+      line: { color: "#444", width: 1, dash: "dot" },
+      showlegend: false,
+      hoverinfo: "skip",
+    },
+  ];
+  const r2Str = r2 != null ? r2.toFixed(3) : "—";
+  const maeStr = mae != null ? mae.toFixed(1) : "—";
+  const rmseStr = rmse != null ? rmse.toFixed(1) : "—";
+  Plotly.newPlot("model-chart-pa", traces, {
+    margin: { l: 56, r: 16, t: 8, b: 50 },
+    xaxis: { range: [0, maxVal], title: { text: "Actual Yield (bu/ac)", standoff: 8 }, gridcolor: "#eef0ee" },
+    yaxis: { range: [0, maxVal], title: { text: "Predicted Yield (bu/ac)", standoff: 10 }, gridcolor: "#eef0ee", scaleanchor: "x" },
+    annotations: [{
+      xref: "paper", yref: "paper", x: 0.02, y: 0.98,
+      text: `R²=${r2Str}  MAE=${maeStr}  RMSE=${rmseStr}`,
+      showarrow: false, xanchor: "left", yanchor: "top",
+      font: { size: 12, color: "#222" },
+    }],
+    legend: { x: 0.98, y: 0.02, xanchor: "right", yanchor: "bottom" },
+    font: PLOTLY_FONT,
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+    height: 360,
+  }, PLOTLY_CFG);
+}
+
+function renderModelChartResiduals(rows) {
+  if (!rows.length) return;
+  const trace = {
+    x: rows.map((r) => String(r.year)),
+    y: rows.map((r) => r.avg_abs_residual),
+    type: "bar",
+    marker: { color: MODEL_BLUE },
+    text: rows.map((r) => r.avg_abs_residual.toFixed(1)),
+    textposition: "outside",
+    hovertemplate: "%{x}<br>Avg |residual|: %{y:.2f}<extra></extra>",
+  };
+  Plotly.newPlot("model-chart-res", [trace], {
+    margin: { l: 56, r: 16, t: 8, b: 50 },
+    xaxis: { title: { text: "Year", standoff: 8 }, gridcolor: "#eef0ee" },
+    yaxis: { title: { text: "Residual (bu/ac)", standoff: 10 }, gridcolor: "#eef0ee" },
+    showlegend: false,
+    font: PLOTLY_FONT,
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+    height: 360,
+  }, PLOTLY_CFG);
+}
+
+function renderModelConfig(rows) {
+  const tbody = document.querySelector("#model-config-table tbody");
+  if (!tbody) return;
+  tbody.innerHTML = rows.map((r) =>
+    `<tr><td>${escHtml(r[0])}</td><td>${escHtml(r[1])}</td></tr>`
+  ).join("");
+}
 
 /* ─────────────────────────────────────────────────────────────────────
    Boot

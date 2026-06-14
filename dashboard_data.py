@@ -14,18 +14,39 @@ and avoid hammering the warehouse.
 
 from __future__ import annotations
 
+import math
 import time
 from typing import Any, Callable
 
 from delta_store import get_store
 
 
+# Region grouping used by the LightGBM training notebook.
+REGION_BY_STATE: dict[str, str] = {
+    # Midwest
+    "IL": "Midwest", "IN": "Midwest", "IA": "Midwest", "MI": "Midwest",
+    "MN": "Midwest", "MO": "Midwest", "OH": "Midwest", "WI": "Midwest",
+    # Plains
+    "KS": "Plains", "NE": "Plains", "ND": "Plains", "SD": "Plains",
+    "OK": "Plains", "TX": "Plains",
+    # South
+    "AL": "South", "AR": "South", "FL": "South", "GA": "South",
+    "KY": "South", "LA": "South", "MS": "South", "NC": "South",
+    "SC": "South", "TN": "South", "VA": "South",
+}
+
+
 DF_HISTORICAL = "workspace.default.df_final_lightgbm"
 DF_2024 = "workspace.default.predictions_2024_partial"
 DF_2024_STATS = "workspace.default.stats_2024_pred_summary"
 
+# Ensemble (LightGBM 60% + RandomForest 40%) test predictions exported from
+# the LightGBM training notebook. Power the Model page when present.
+DF_ENSEMBLE_TEST = "workspace.default.df_ensemble_test_2021_2023"
+MODEL_ENSEMBLE_STATS = "workspace.default.model_ensemble_stats"
+
 # Documented model performance from training notebook (not in the table).
-MODEL_CV_R2 = 0.4220
+MODEL_CV_R2 = 0.6440
 
 _CACHE_TTL_SECONDS = 600  # 10 min
 _cache: dict[str, tuple[float, Any]] = {}
@@ -687,6 +708,338 @@ def predictor_lookup(
         "noaa_window": noaa_window,
         "sample_rows": sample_rows,
     }
+
+
+# ---------------------------------------------------------------------------
+# Model dashboard — replicates the LightGBM notebook's final-cell view
+# ---------------------------------------------------------------------------
+#
+# Computes everything live from `df_final_lightgbm` (we already cache the rows)
+# so the page always reflects what the deployed model actually produced.
+# Train/Test split: year < 2021 vs year >= 2021. Region is derived from the
+# state_abbr via REGION_BY_STATE (Midwest / Plains / South only).
+# ---------------------------------------------------------------------------
+
+
+def _r2(actuals: list[float], preds: list[float]) -> float | None:
+    n = len(actuals)
+    if n < 2:
+        return None
+    mean_y = sum(actuals) / n
+    ss_tot = sum((y - mean_y) ** 2 for y in actuals)
+    if ss_tot == 0:
+        return None
+    ss_res = sum((y - p) ** 2 for y, p in zip(actuals, preds))
+    return 1.0 - (ss_res / ss_tot)
+
+
+def _mae(actuals: list[float], preds: list[float]) -> float | None:
+    if not actuals:
+        return None
+    return sum(abs(y - p) for y, p in zip(actuals, preds)) / len(actuals)
+
+
+def _rmse(actuals: list[float], preds: list[float]) -> float | None:
+    if not actuals:
+        return None
+    return math.sqrt(sum((y - p) ** 2 for y, p in zip(actuals, preds)) / len(actuals))
+
+
+def _build_model_config(
+    overall_mae: float | None,
+    overall_rmse: float | None,
+    anomaly_count: int,
+    test_n: int,
+    source_label: str,
+) -> list[list[str]]:
+    if overall_mae is not None and overall_rmse is not None:
+        mae_rmse_str = f"{overall_mae:.2f} / {overall_rmse:.2f} bu/ac (test set)"
+    else:
+        mae_rmse_str = "—"
+    if test_n > 0:
+        anomaly_str = (
+            f"Z-score ≥ 2.0 on residuals → {anomaly_count} flags "
+            f"({100 * anomaly_count / test_n:.1f}%)"
+        )
+    else:
+        anomaly_str = "Z-score ≥ 2.0 on residuals"
+    return [
+        ["Models", "LightGBM + Random Forest (ensemble)"],
+        ["Ensemble weights", "LightGBM 60% + RF 40%"],
+        ["LGBM n_estimators / lr / num_leaves", "1000 / 0.05 / 63"],
+        ["LGBM reg_alpha / reg_lambda / subsample", "0.1 / 1.0 / 0.8"],
+        ["RF n_estimators / max_features / min_samples_leaf", "300 / 0.6 / 10"],
+        ["Early stopping", "LightGBM: patience=50 on 15% holdout"],
+        ["Features", "28 total (weather + GDD + trend + irrigation + state/county baseline)"],
+        ["Train / Test split", "year < 2021 / year ≥ 2021"],
+        ["Regions", "Midwest, Plains, South (separate model per crop × region)"],
+        ["Overall MAE / RMSE", mae_rmse_str],
+        ["Anomaly detection", anomaly_str],
+        ["Data source", source_label],
+    ]
+
+
+def _model_dashboard_from_ensemble_table() -> dict[str, Any] | None:
+    """Try to build the Model page from the ensemble notebook export tables.
+
+    Returns None if either table is missing or empty so the caller can fall
+    back to the legacy `df_final_lightgbm`-based computation.
+    """
+    try:
+        rows = _query(f"""
+            SELECT state_abbr, county_name, year, commodity, region,
+                   yield_amount, pred_yield, signed_residual, abs_residual
+            FROM {DF_ENSEMBLE_TEST}
+        """)
+    except Exception:
+        return None
+    if not rows:
+        return None
+
+    try:
+        stats_rows = _query(f"""
+            SELECT model_name, ensemble_weights, train_rows, test_rows,
+                   test_year_min, test_year_max, test_r2, test_mae, test_rmse
+            FROM {MODEL_ENSEMBLE_STATS}
+            LIMIT 1
+        """)
+    except Exception:
+        stats_rows = []
+    stats = stats_rows[0] if stats_rows else {}
+
+    cleaned: list[dict[str, Any]] = []
+    for r in rows:
+        try:
+            actual = float(r["yield_amount"])
+            pred = float(r["pred_yield"])
+        except (TypeError, ValueError):
+            continue
+        cleaned.append({
+            "actual": actual,
+            "predicted": pred,
+            "year": _i(r.get("year")),
+            "commodity": str(r.get("commodity") or ""),
+            "region": str(r.get("region") or ""),
+            "state": str(r.get("state_abbr") or ""),
+            "county": (str(r.get("county_name") or "")).strip(),
+            "signed_residual": (
+                _f(r.get("signed_residual")) if r.get("signed_residual") is not None
+                else (actual - pred)
+            ),
+        })
+
+    if not cleaned:
+        return None
+
+    actuals = [r["actual"] for r in cleaned]
+    preds = [r["predicted"] for r in cleaned]
+
+    # Prefer authoritative metrics from the stats table when present.
+    overall_r2 = (
+        _f(stats.get("test_r2")) if stats.get("test_r2") is not None else _r2(actuals, preds)
+    )
+    overall_mae = (
+        _f(stats.get("test_mae")) if stats.get("test_mae") is not None else _mae(actuals, preds)
+    )
+    overall_rmse = (
+        _f(stats.get("test_rmse")) if stats.get("test_rmse") is not None else _rmse(actuals, preds)
+    )
+
+    r2_by_crop_region: list[dict[str, Any]] = []
+    for region in ("Midwest", "Plains", "South"):
+        for crop in ("Corn", "Soybeans"):
+            subset = [r for r in cleaned if r["region"] == region and r["commodity"] == crop]
+            a = [r["actual"] for r in subset]
+            p = [r["predicted"] for r in subset]
+            r2_by_crop_region.append({
+                "region": region, "crop": crop,
+                "r2": _r2(a, p), "n": len(subset),
+            })
+
+    r2_by_crop: list[dict[str, Any]] = []
+    for crop in ("Corn", "Soybeans"):
+        subset = [r for r in cleaned if r["commodity"] == crop]
+        a = [r["actual"] for r in subset]
+        p = [r["predicted"] for r in subset]
+        r2_by_crop.append({"crop": crop, "r2": _r2(a, p), "n": len(subset)})
+
+    scatter: list[dict[str, Any]] = [{
+        "actual": r["actual"],
+        "predicted": r["predicted"],
+        "crop": r["commodity"],
+        "year": r["year"],
+        "state": r["state"],
+        "county": r["county"],
+    } for r in cleaned]
+
+    years_test = sorted({r["year"] for r in cleaned if r.get("year")})
+    residual_by_year: list[dict[str, Any]] = []
+    for y in years_test:
+        subset = [r for r in cleaned if r["year"] == y]
+        if not subset:
+            continue
+        absres = [abs(r["signed_residual"]) for r in subset]
+        residual_by_year.append({
+            "year": y,
+            "avg_abs_residual": sum(absres) / len(absres),
+            "n": len(subset),
+        })
+
+    # Anomaly count: |z| >= 2 within the test set, computed from residuals here.
+    if len(cleaned) > 1:
+        residuals = [r["signed_residual"] for r in cleaned]
+        mean_r = sum(residuals) / len(residuals)
+        var_r = sum((x - mean_r) ** 2 for x in residuals) / max(1, len(residuals) - 1)
+        std_r = math.sqrt(var_r) if var_r > 0 else 0.0
+        anomaly_count = sum(
+            1 for x in residuals if std_r > 0 and abs((x - mean_r) / std_r) >= 2.0
+        )
+    else:
+        anomaly_count = 0
+
+    train_rows = (
+        _i(stats.get("train_rows")) if stats.get("train_rows") is not None else 0
+    )
+    test_year_min = (
+        _i(stats.get("test_year_min")) if stats.get("test_year_min") is not None
+        else (min(years_test) if years_test else 2021)
+    )
+    test_year_max = (
+        _i(stats.get("test_year_max")) if stats.get("test_year_max") is not None
+        else (max(years_test) if years_test else 2023)
+    )
+
+    config = _build_model_config(
+        overall_mae, overall_rmse, anomaly_count, len(cleaned),
+        source_label=f"{DF_ENSEMBLE_TEST} (ensemble notebook export)",
+    )
+
+    return {
+        "source": "ensemble_table",
+        "hero": {
+            "test_r2": overall_r2,
+            "test_mae": overall_mae,
+            "test_rmse": overall_rmse,
+            "train_rows": train_rows,
+            "test_rows": len(cleaned),
+            "train_year_max": test_year_min - 1,
+            "test_year_min": test_year_min,
+            "test_year_max": test_year_max,
+        },
+        "r2_by_crop_region": r2_by_crop_region,
+        "r2_by_crop": r2_by_crop,
+        "scatter": scatter,
+        "residual_by_year": residual_by_year,
+        "config": config,
+    }
+
+
+def _model_dashboard_from_historical_fallback() -> dict[str, Any]:
+    """Legacy path: derive Model page from `df_final_lightgbm.pred_yield`.
+
+    Numbers will NOT match the LightGBM+RF ensemble notebook because this
+    table's `pred_yield` came from the original anomaly-detection model.
+    """
+    hist = historical_full()
+    rows = hist.get("rows", [])
+
+    valid: list[dict[str, Any]] = []
+    for r in rows:
+        region = REGION_BY_STATE.get(r.get("state_abbr") or "")
+        if not region:
+            continue
+        if r.get("yield_amount") is None or r.get("pred_yield") is None:
+            continue
+        commodity = r.get("commodity") or ""
+        if commodity not in ("Corn", "Soybeans"):
+            continue
+        valid.append({**r, "_region": region})
+
+    train = [r for r in valid if (r.get("year") or 0) < 2021]
+    test = [r for r in valid if (r.get("year") or 0) >= 2021]
+
+    actuals = [float(r["yield_amount"]) for r in test]
+    preds = [float(r["pred_yield"]) for r in test]
+    overall_r2 = _r2(actuals, preds)
+    overall_mae = _mae(actuals, preds)
+    overall_rmse = _rmse(actuals, preds)
+
+    r2_by_crop_region: list[dict[str, Any]] = []
+    for region in ("Midwest", "Plains", "South"):
+        for crop in ("Corn", "Soybeans"):
+            subset = [r for r in test if r["_region"] == region and r["commodity"] == crop]
+            a = [float(r["yield_amount"]) for r in subset]
+            p = [float(r["pred_yield"]) for r in subset]
+            r2_by_crop_region.append({
+                "region": region, "crop": crop,
+                "r2": _r2(a, p), "n": len(subset),
+            })
+
+    r2_by_crop: list[dict[str, Any]] = []
+    for crop in ("Corn", "Soybeans"):
+        subset = [r for r in test if r["commodity"] == crop]
+        a = [float(r["yield_amount"]) for r in subset]
+        p = [float(r["pred_yield"]) for r in subset]
+        r2_by_crop.append({"crop": crop, "r2": _r2(a, p), "n": len(subset)})
+
+    scatter: list[dict[str, Any]] = [{
+        "actual": float(r["yield_amount"]),
+        "predicted": float(r["pred_yield"]),
+        "crop": r["commodity"],
+        "year": r["year"],
+        "state": r["state_abbr"],
+        "county": r["county_name"],
+    } for r in test]
+
+    years_test = sorted({r["year"] for r in test if r.get("year")})
+    residual_by_year: list[dict[str, Any]] = []
+    for y in years_test:
+        subset = [r for r in test if r["year"] == y]
+        if not subset:
+            continue
+        absres = [abs(float(rr["yield_amount"]) - float(rr["pred_yield"])) for rr in subset]
+        residual_by_year.append({
+            "year": y,
+            "avg_abs_residual": sum(absres) / len(absres),
+            "n": len(subset),
+        })
+
+    anomaly_count_test = sum(1 for r in test if (r.get("anomaly_flag") or 0) == 1)
+    config = _build_model_config(
+        overall_mae, overall_rmse, anomaly_count_test, len(test),
+        source_label=f"{DF_HISTORICAL} (legacy fallback — not ensemble)",
+    )
+
+    return {
+        "source": "historical_fallback",
+        "hero": {
+            "test_r2": overall_r2,
+            "test_mae": overall_mae,
+            "test_rmse": overall_rmse,
+            "train_rows": len(train),
+            "test_rows": len(test),
+            "train_year_max": 2020,
+            "test_year_min": 2021,
+            "test_year_max": max(years_test) if years_test else 2023,
+        },
+        "r2_by_crop_region": r2_by_crop_region,
+        "r2_by_crop": r2_by_crop,
+        "scatter": scatter,
+        "residual_by_year": residual_by_year,
+        "config": config,
+    }
+
+
+def model_dashboard() -> dict[str, Any]:
+    """Build the Model page payload, preferring the ensemble notebook export."""
+
+    def _load() -> dict[str, Any]:
+        ensemble = _model_dashboard_from_ensemble_table()
+        if ensemble is not None:
+            return ensemble
+        return _model_dashboard_from_historical_fallback()
+
+    return _cached("model_dashboard", _load)
 
 
 def predict_yield_real(features: dict[str, Any]) -> dict[str, Any]:

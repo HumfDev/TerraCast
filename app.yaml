@@ -8,7 +8,7 @@ env:
   - name: DELTA_TABLE_PREDICTIONS
     value: "workspace.default.predictions_log"
   - name: MODEL_VOLUME_PATH
-    value: "/Volumes/workspace/terract/models"
+    value: "/Volumes/workspace/default/models"
   - name: LAKEHOUSE_ENABLED
     value: "true"
   - name: LOG_PREDICTIONS
@@ -26,3 +26,12 @@ resources:
   - name: workspace.default.stats_2024_pred_summary
     description: 2024 prediction summary statistics
     permission: READ
+  - name: workspace.default.df_ensemble_test_2021_2023
+    description: Ensemble (LightGBM + RF) test predictions (year >= 2021)
+    permission: READ
+  - name: workspace.default.model_ensemble_stats
+    description: Ensemble model performance summary (single row)
+    permission: READ
+  - name: workspace.default.models
+    description: Volume holding ensemble pickle artifacts
+    permission: READ_VOLUME
