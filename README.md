@@ -1,5 +1,7 @@
 # TerraCast
 
+[![Hackathon](https://img.shields.io/badge/Databricks%20x%20University%20of%20Washington%20Hackathon-1st%20Place%20Winner-ff3621?style=for-the-badge&logo=databricks&logoColor=white)](https://devpost.com/software/terracast)
+
 Weather-based crop yield prediction and agricultural intelligence for U.S. corn and soybeans. TerraCast pairs regional LightGBM models with a Databricks Genie AI assistant, served through a FastAPI app and deployed as a Databricks App on top of a Unity Catalog lakehouse.
 
 ![TerraCast](img/main.png)
